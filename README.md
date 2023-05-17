@@ -22,7 +22,7 @@ A p-way partitioning of graph G is a division of G into p sub-graphs in which th
     - Selection of algorithm: determine what heuristics make sense (i.e. level of imbalance between the partitions and level of failure of edges)
     - Experimental evaluation: tables or graphics reporting a reasonable set of experimental results.
     - Experimental evaluation: comparison (in terms of memory and of elapsed time) between the original sequential version of the tool and the 2-3 parallel versions with different parallelization levels (1, 2, 4, 8, threads) and increasing complexity of the input graph (up to millions of nodes).
-          - Evaluate a standard graph sample dataset that can be used with the tool (real-world dataset)
+    - Evaluate a standard graph sample dataset that can be used with the tool (real-world dataset)
     - Optional: Compare the result of the written tool with publicly available applications such as hMetis, or the one available in Python in scikit-learn.
 4. An OVERHEAD set (organized in PowerPoint or similar) to be used during the project discussion in the project evaluation phase.
 
