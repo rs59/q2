@@ -9,7 +9,8 @@
 class Test : public CPPUNIT_NS::TestCase
 {
   CPPUNIT_TEST_SUITE(Test);
-  CPPUNIT_TEST(testSequential);
+  CPPUNIT_TEST(test2023Partition);
+  //CPPUNIT_TEST(failTest); // For confirming that failing tests actually fail
   CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -17,9 +18,15 @@ public:
   void tearDown(void) {}
 
 protected:
-  void testSequential(void) {
-    system("./sequential >nul 2>nul");
+  void test2023Partition(void) {
+    system("./2023partition >nul 2>nul");
   }
+
+  // void failTest(void)
+  // {
+  //   exit(1);
+  // }
+
 };
 
 

@@ -57,10 +57,16 @@ jobs:
       run: curl https://raw.githubusercontent.com/rs59/q2/main/output/test.ipynb --output test.ipynb
     - name: ls
       run: ls .
-    - name: Run test ipynb file as output
-      run: cd output; jupyter nbconvert ./test.ipynb --to pdf --execute
-    - name: Archive code coverage results
+    - name: Run documentation ipynb files as output (1 of 3)
+      run: cd output && jupyter nbconvert ./DOCUMENTATION_2.ipynb --to pdf --execute
+    - name: Run documentation ipynb files as output (2 of 3)
+      run: cd output && jupyter nbconvert ./DOCUMENTATION_3.ipynb --to pdf --execute
+    - name: Run documentation ipynb files as output (3 of 3)
+      run: cd output && jupyter nbconvert ./DOCUMENTATION_4.ipynb --to pdf --execute
+    - name: Copy program file into output folder
+      run: cp ./src/2023partition.cpp ./output/2023partition.cpp
+    - name: Archive submission documents
       uses: actions/upload-artifact@v3
       with:
-        name: notebook
-        path: output/test.pdf
+        name: package_to_turn_in
+        path: output/
