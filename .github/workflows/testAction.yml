@@ -13,11 +13,54 @@ jobs:
     - uses: actions/checkout@v3
     - name: install cppunit
       run: sudo apt install -y libcppunit-dev
-    - name: 
-      run: chmod +x ./configure
-    - name: 
-      run: ./configure
+    - name: configure
+      run: chmod +x ./configure; ./configure
     - name: make
       run: make
     - name: make test
       run: make test
+    - name: ls
+      run: ls .
+
+  generate-output:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+    - uses: conda-incubator/setup-miniconda@v2
+      name: Conda environment setup for notebook output
+      with:
+        miniconda-version: "latest"
+        channels: bioconda, conda-forge, defaults
+        use-only-tar-bz2: true  # IMPORTANT: This needs to be set for caching to work properly!
+        auto-update-conda: true
+        auto-activate-base: true
+    - uses: actions/checkout@v3
+    - name: Create conda env; init; activate
+      run: conda create -n my-conda-env; conda init bash; conda activate my-conda-env
+    - name: Update apt remote
+      run: sudo apt update
+    - name: Install xeus dependencies
+      run: sudo apt install epiphany jupyter-notebook
+    - name: Install nbconvert dependencies
+      run: sudo apt-get install texlive-xetex texlive-fonts-recommended texlive-plain-generic pandoc
+    - name: Get zeus-cling versions
+      run: conda search xeus-cling --channel conda-forge
+    - name: Install zeus-cling via Conda (limited to v13 otherwise there are compatibility issues)
+      run: conda install xeus-cling==0.13.0 -c conda-forge
+    - name: Install nbconvert via Conda
+      run: conda install nbconvert
+    - name: Check if jupyter has nbconvert installed
+      run: python -m jupyter --version
+    - name: Get test ipynb C++ file
+      run: curl https://raw.githubusercontent.com/rs59/q2/main/output/test.ipynb --output test.ipynb
+    - name: ls
+      run: ls .
+    - name: Run test ipynb file as output
+      run: cd output; jupyter nbconvert ./test.ipynb --to pdf --execute
+    - name: Archive code coverage results
+      uses: actions/upload-artifact@v3
+      with:
+        name: notebook
+        path: output/test.pdf

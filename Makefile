@@ -1,10 +1,12 @@
 all:
-	cd src && g++ -std=c++17 sequential.cpp -o sequential
-	cd src && g++ -std=c++17 test.cpp -lcppunit -o test
+	mkdir bin
+	cd bin && g++ -std=c++17 ../src/sequential.cpp -o sequential
+	cd bin && g++ -std=c++17 ../src/test.cpp -lcppunit -o test
 
 test:
-	cd src && chmod +x sequential
-	cd src && ./test
+	cd bin && chmod +x sequential
+	cd bin && ./test
 
 clean:
-	cd src && $(RM) sequential test
+	cd bin && $(RM) sequential test
+	$(RM) ./bin
