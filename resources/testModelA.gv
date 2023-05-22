@@ -1,0 +1,18 @@
+#define _STR(x) #x
+#define STR(x) _STR(x)
+
+#define V(A,B) A [label=B];
+#define E(A,B,C) A -- B [label="  "+STR(C)];
+
+graph G {
+  
+    V(n1,4)
+    V(n2,3)
+    V(n3,2)
+    V(n4,1)
+
+    E(n1,n3,6)
+    E(n3,n2,7)
+    E(n1,n4,9)
+    E(n2,n4,4)
+}

@@ -19,7 +19,7 @@ public:
 
 protected:
   void test2023Partition(void) {
-    system("./2023partition >nul 2>nul");
+    system("./2023partition");
   }
 
   // void failTest(void)
