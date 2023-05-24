@@ -18,12 +18,11 @@ class CustomException : public std::exception {
 int main(int argc, char** argv)
 {
 	try {
-	    cout << "Hello, World!" << endl;
 	    if(argc!=6) {
-	        throw CustomException("Wrong number of arguments provided");
+	        throw CustomException("Wrong number of arguments provided.");
 	    }
 	} catch (CustomException ce) {
-        cout << ce.what();
+        cout << ce.what() << endl;
         exit(1);
     }
 }
