@@ -39,10 +39,10 @@ int main(int argc, char** argv)
 {
     // Check arguments
     try {
-        if(argc!=6) {
+        if(argc!=6) { // There are 6 arguments (1 program name + 5 parameters)
             throw CustomException("Wrong number of arguments provided.");
-        }
-        if(!isPositiveInt(argv[1]) || !isPositiveInt(argv[2])) {
+        } else if(!isPositiveInt(argv[1]) || !isPositiveInt(argv[2])) {
+            // The first two arguments are positive ints
             throw CustomException("The first two arguments (nthreads and npartitions) must be positive, nonzero integers."+USAGE_INSTRUCTIONS);
         }
 
