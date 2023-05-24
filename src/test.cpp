@@ -43,6 +43,8 @@ class Test : public CPPUNIT_NS::TestCase
   CPPUNIT_TEST_SUITE(Test);
   CPPUNIT_TEST(test2023Partition_execution);
   CPPUNIT_TEST(test2023Partition_execution2);
+  CPPUNIT_TEST(test2023Partition_execution3);
+  CPPUNIT_TEST(test2023Partition_execution4);
   CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -51,7 +53,7 @@ public:
 
 protected:
 
-  // Test that ./2023partition (no arguments) fails and returns an error message
+  // Test that ./2023partition (no arguments) fails AND returns an error message
   void test2023Partition_execution(void) {
     bool DESIRED_SUCCESS = false; // Expect failure
     std::pair<int, std::string> p = exec("./2023partition");
@@ -73,6 +75,29 @@ protected:
       exit(1);
     }
   }
+
+  // Test that ./2023partition 3.1 2 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv (wrong arguments) fails
+  // Concretely: 1st parameter is not a positive int
+  void test2023Partition_execution3(void) {
+    bool DESIRED_SUCCESS = false; // Expect failure
+    std::pair<int, std::string> p = exec("./2023partition 3.1 2 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv");
+    std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdout:" << p.second;
+    if(DESIRED_SUCCESS ? p.first!=EXIT_SUCCESS : p.first==EXIT_SUCCESS) { 
+      exit(1);
+    }
+  }
+
+  // Test that ./2023partition 1 A 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv (wrong arguments) fails
+  // Concretely: 2nt parameter is not a positive int
+  void test2023Partition_execution4(void) {
+    bool DESIRED_SUCCESS = false; // Expect failure
+    std::pair<int, std::string> p = exec("./2023partition 1 A 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv");
+    std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdout:" << p.second;
+    if(DESIRED_SUCCESS ? p.first!=EXIT_SUCCESS : p.first==EXIT_SUCCESS) { 
+      exit(1);
+    }
+  }
+
 
 
 };
