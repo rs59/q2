@@ -1,6 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <unistd.h>
+#include <stdbool.h>
+#include <filesystem>
 
 using namespace std;
 
@@ -27,6 +30,23 @@ bool isPositiveInt(string str) {
 bool isFloatGreaterThanOne(string str) {
     return stof(str) > 1.00f;
 }
+
+// Utility function to check if file is writable
+bool isFilePathWritable(const string& filePath) {
+    // Extract the folder path from the file path
+    std::filesystem::path folderPath = std::filesystem::path(filePath).parent_path();
+
+    // Check if the folder path is writable
+    if (std::filesystem::exists(folderPath)) {
+        if (access(folderPath.string().c_str(), W_OK) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
 
 
 
@@ -57,7 +77,10 @@ int main(int argc, char** argv)
             throw CustomException("The third argument (deviation parameter) must be greater than one."+USAGE_INSTRUCTIONS);
         } else if(!ifstream(argv[4]).good()) {
             // The fourth argument is a file that doesn't exist
-            throw CustomException("The fourth argument (input file name) must exist."+USAGE_INSTRUCTIONS);
+            throw CustomException("The fourth argument (input file path) must exist."+USAGE_INSTRUCTIONS);
+        } else if(!isFilePathWritable(argv[5])) {
+            // The fifth argument is a file that is not writable
+            throw CustomException("The fifth argument (output file path) must be writable."+USAGE_INSTRUCTIONS);
         }
     } catch (CustomException ce) {
         cout << ce.what() << endl;
