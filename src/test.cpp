@@ -104,7 +104,7 @@ protected:
   // Concretely: 3rd parameter is not a float greater than 1
   void test2023Partition_execution5(void) {
     bool DESIRED_SUCCESS = false; // Expect failure
-    std::pair<int, std::string> p = exec("./2023partition 1 2 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv");
+    std::pair<int, std::string> p = exec("./2023partition 1 2 0.95 ../resources/testModelA.gv ../resources/testModelA-2part.gv");
     std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
     if(DESIRED_SUCCESS ? p.first!=EXIT_SUCCESS : p.first==EXIT_SUCCESS) { 
       exit(1);
@@ -115,7 +115,7 @@ protected:
   // Concretely: 4th parameter file does not exist
   void test2023Partition_execution6(void) {
     bool DESIRED_SUCCESS = false; // Expect failure
-    std::pair<int, std::string> p = exec("./2023partition 1 2 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv");
+    std::pair<int, std::string> p = exec("./2023partition 1 2 1.10 ../resources/testModelaaaA.gv ../resources/testModelA-2part.gv");
     std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
     if(DESIRED_SUCCESS ? p.first!=EXIT_SUCCESS : p.first==EXIT_SUCCESS) { 
       exit(1);
