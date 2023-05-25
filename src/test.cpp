@@ -47,6 +47,7 @@ class Test : public CPPUNIT_NS::TestCase
   CPPUNIT_TEST(test2023Partition_execution4);
   CPPUNIT_TEST(test2023Partition_execution5);
   CPPUNIT_TEST(test2023Partition_execution6);
+  CPPUNIT_TEST(test2023Partition_execution7);
   CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -116,6 +117,17 @@ protected:
   void test2023Partition_execution6(void) {
     bool DESIRED_SUCCESS = false; // Expect failure
     std::pair<int, std::string> p = exec("./2023partition 1 2 1.10 ../resources/testModelaaaA.gv ../resources/testModelA-2part.gv");
+    std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
+    if(DESIRED_SUCCESS ? p.first!=EXIT_SUCCESS : p.first==EXIT_SUCCESS) { 
+      exit(1);
+    }
+  }
+
+  // Test that ./2023partition 1 2 1.10 ../resources/testModelA.gv ../asbdsad12/qq.gv (wrong arguments) fails
+  // Concretely: 5th parameter file is not writable
+  void test2023Partition_execution7(void) {
+    bool DESIRED_SUCCESS = false; // Expect failure
+    std::pair<int, std::string> p = exec("./2023partition 1 2 1.10 ../resources/testModelA.gv ../asbdsad12/qq.gv");
     std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
     if(DESIRED_SUCCESS ? p.first!=EXIT_SUCCESS : p.first==EXIT_SUCCESS) { 
       exit(1);
