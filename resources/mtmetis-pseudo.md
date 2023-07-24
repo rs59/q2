@@ -8,6 +8,7 @@ Function LoadGraphFromMemory(inputfile):
     # As first implementation this is using a greedy appoach, making each partition
     # almost with the same sum of the belonging vertices weights
 Function InitialPartitioning(npartitions):
+
     # Calculate the total weight of all vertices in the graph
     total_weight = sum(vertex_weights)
 
