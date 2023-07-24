@@ -1,13 +1,14 @@
 # Function to load the graph from file
+Function LoadGraphFromMemory(inputfile):
     # Read graph data from the input file and create the graph representation.
     # Initialize the vertices, edges, and their weights.
-Function LoadGraphFromMemory(inputfile):
 
 # Function to create the initial partition
+
+Function InitialPartitioning(npartitions):
     # Generate an initial partitioning of the graph G into npartitions sub-graphs.
     # As first implementation this is using a greedy appoach, making each partition
     # almost with the same sum of the belonging vertices weights
-Function InitialPartitioning(npartitions):
 
     # Calculate the total weight of all vertices in the graph
     total_weight = sum(vertex_weights)
@@ -34,8 +35,9 @@ Function InitialPartitioning(npartitions):
     return partitions
 
 # Functions used to coarse the graph
-    #Function to compute matching between vertices for coarsening
+
 Function ComputeMatching(graph):
+    #Function to compute matching between vertices for coarsening
 
     # Implementation using the simplest approach - greedy matching
     matching = {}
@@ -59,8 +61,9 @@ Function ComputeMatching(graph):
 
     return matching
 
-    #Function to collapse matched vertices into a coarser representation
+
 Function CollapseVertices(graph, matching):
+    #Function to collapse matched vertices into a coarser representation
 
     coarse_graph = []
     merged_vertices = set()
@@ -78,8 +81,9 @@ Function CollapseVertices(graph, matching):
 
     return coarse_graph
 
-    #Function to update the edge weights after collapsing vertices
+
 Function UpdateEdgeWeights(graph, matching, edge_weights):
+    #Function to update the edge weights after collapsing vertices
 
     coarse_edge_weights = [0] * len(graph)
 
@@ -94,8 +98,9 @@ Function UpdateEdgeWeights(graph, matching, edge_weights):
 
     return coarse_edge_weights
 
-    #Function to update the vertex mapping after collapsing vertices
+
 Function UpdateVertexMapping(matching, vertex_mapping):
+    #Function to update the vertex mapping after collapsing vertices
 
     new_vertex_mapping = [None] * len(vertex_mapping)
 
@@ -122,10 +127,11 @@ Function UpdateVertexMapping(matching, vertex_mapping):
 
     return new_vertex_mapping
 
+
+Function Coarsening():
     # Reduce the size of the graph by aggregating vertices and edges.
     # This step involves coarsening techniques like matching and collapsing to create a smaller graph.
     # Repeat the coarsening process iteratively until a coarsest level graph is obtained.
-Function Coarsening():
 
     # Initialize the coarsest level graph
     coarse_graph = initial_graph  # Copy the initial graph representation
@@ -152,11 +158,12 @@ Function Coarsening():
     graph = coarse_graph
 
 # Function used to compute the sum of crossing edges cuts
+
+Function ComputeEdgeCuts(partition, edge_weights):
     #Function to compute the total weight of edges crossing between subsets in the given partition
     #partition: A list of subsets, where each subset contains the vertices belonging to that subset
     #edge_weights: A list of edge weights corresponding to each edge in the graph
     #Returns: The total weight of edges crossing between subsets in the given partition
-Function ComputeEdgeCuts(partition, edge_weights):
 
     total_edge_cuts = 0
     counted_edges = set()  # Keep track of counted edges to avoid double-counting
@@ -179,11 +186,12 @@ Function ComputeEdgeCuts(partition, edge_weights):
     return total_edge_cuts
 
 # Function to refine the partitions
+
+function RefinementStep(partition, edge_weights):
     #Function to perform a single step of the refinement process using the Kernighan-Lin algorithm
     #to improve the partition quality.
     #partition: A list of subsets, where each subset contains the vertices belonging to that subset.
     #edge_weights: A list of edge weights corresponding to each edge in the graph.
-function RefinementStep(partition, edge_weights):
 
     # Get the number of vertices and partitions
     num_vertices = len(edge_weights)
@@ -275,9 +283,10 @@ function RefinementStep(partition, edge_weights):
     # No need to return anything, as the changes have been applied directly to the 'partition' parameter.
 
 # Function to perform multithreaded refinement step
+
+function MultithreadedRefinement(nthreads):
     #Function to perform the refinement process in a multithreaded manner.
     #nthreads: The number of threads to use for parallel processing.
-function MultithreadedRefinement(nthreads):
 
     # Calculate the number of vertices in each chunk for each thread.
     chunk_size = len(graph) // nthreads
