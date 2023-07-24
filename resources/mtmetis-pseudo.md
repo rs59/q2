@@ -340,9 +340,9 @@ function MultithreadedRefinement(nthreads):
 
 function MultithreadedMETIS(nthreads, npartitions, maxdeviation):
 
-   #called by the entrypoint
+    #Called by entrypoint of the program
 
-   LoadGraphFromMemory(inputfile)
+    LoadGraphFromMemory(inputfile)
     Coarsening()  # Coarsen the graph
 
     # Store the coarsest level graph in 'graph'
