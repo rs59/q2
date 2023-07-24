@@ -337,7 +337,8 @@ function MultithreadedRefinement(nthreads):
 
 
 # Main Algorithm
-Function MultithreadedMETIS(nthreads, npartitions, maxdeviation):
+
+function MultithreadedMETIS(nthreads, npartitions, maxdeviation):
 
    #called by the entrypoint
 
