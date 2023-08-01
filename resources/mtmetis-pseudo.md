@@ -160,9 +160,8 @@ Function Coarsening():
         # Update the vertex mapping for the finer-to-coarser level mapping
         vertex_mapping = UpdateVertexMapping(matching, vertex_mapping)
 
-    # Store the coarsest level graph in 'graph'
-    global graph
-    graph = coarse_graph
+    # Return the coarsest level graph in 'graph'
+    return coarse_graph
 
 # Function used to compute the sum of crossing edges cuts
 
@@ -338,7 +337,7 @@ function MultithreadedRefinement(nthreads):
 
 # Main Algorithm
 
-function MultithreadedMETIS(nthreads, npartitions, maxdeviation):
+function MultithreadedMETIS(nthreads, npartitions, maxdeviation, inputfile):
 
     #Called by entrypoint of the program
 
