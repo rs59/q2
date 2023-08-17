@@ -1,12 +1,18 @@
-#include<iostream>
-#include<graph.h>
-#include<vector>
-#include<algorithm>
+#include <iostream>
+#include "graph.h"
+#include <vector>
+#include <algorithm>
+#include <string>
+#include <unordered_set>
+#include <thread>
+#include "coarsening.cpp"
+#include "uncoarsening.cpp"
+
+using namespace std;
 
 int NUM_ITERATIONS = 100; //TO BE DEFINED
-int coarsest_graph_size = 10 //TO BE DEFINED
 
-//To be defined in LoadGraphFromMemory 
+//To be defined in LoadGraphFromMemory
 Graph graph;
 Graph coarsedGraph;
 
@@ -14,158 +20,10 @@ void LoadGraphFromMemory(string inputfile){
     //TO-DO
 }
 
-// Function to compute matching between vertices for coarsening
-std::vector<std::pair<int, int>> ComputeMatching(const Graph& graph_cm) {
-    std::vector<std::pair<int, int>> matching;
-    std::vector<bool> is_matched(graph_cm.size(), false);
-
-    for (int vertex = 0; vertex < graph_cm.size(); vertex++) {
-        if (is_matched[vertex]) {
-            continue; // Skip already matched vertices
-        }
-
-        const std::vector<int>& neighbors = graph_cm[vertex];
-        int matched_neighbor = -1;
-
-        // Find the first unmatched neighbor
-        for (int neighbor : neighbors) {
-            if (!is_matched[neighbor]) {
-                matched_neighbor = neighbor;
-                break;
-            }
-        }
-
-        if (matched_neighbor != -1) {
-            matching.emplace_back(vertex, matched_neighbor);
-            is_matched[vertex] = true;
-            is_matched[matched_neighbor] = true;
-        }
-    }
-
-    return matching;
-}
-
-// Function to collapse matched vertices into a coarser representation
-Graph CollapseVertices(const Graph& graph_cv, const std::vector<std::pair<int, int>>& matching) {
-    Graph coarse_graph;
-    std::unordered_set<int> merged_vertices;
-
-    for (int vertex = 0; vertex < graph_cv.size(); vertex++) {
-        if (merged_vertices.find(vertex) == merged_vertices.end()) {
-            auto matched_vertex_it = std::find_if(matching.begin(), matching.end(), [vertex](const std::pair<int, int>& match) {
-                return match.first == vertex || match.second == vertex;
-            });
-
-            if (matched_vertex_it == matching.end()) {
-                coarse_graph.push_back(graph_cv[vertex]);
-            } else {
-                int matched_vertex = (vertex == matched_vertex_it->first) ? matched_vertex_it->second : matched_vertex_it->first;
-                merged_vertices.insert(matched_vertex);
-                merged_vertices.insert(vertex);
-                std::vector<int> merged_neighbors = graph_cv[vertex];
-                merged_neighbors.insert(merged_neighbors.end(), graph_cv[matched_vertex].begin(), graph_cv[matched_vertex].end());
-                coarse_graph.push_back(merged_neighbors);
-            }
-        }
-    }
-
-    return coarse_graph;
-}
-
-// Function to update the edge weights after collapsing vertices
-std::vector<double> UpdateEdgeWeights(const Graph& graph_ue, const std::vector<std::pair<int, int>>& matching, const std::vector<double>& edge_weights) {
-    std::vector<double> coarse_edge_weights(graph_ue.size(), 0.0);
-
-    for (int vertex = 0; vertex < graph_ue.size(); vertex++) {
-        int matched_vertex = -1;
-        for (const auto& match : matching) {
-            if (match.first == vertex || match.second == vertex) {
-                matched_vertex = (vertex == match.first) ? match.second : match.first;
-                break;
-            }
-        }
-
-        if (matched_vertex == -1) {
-            coarse_edge_weights[vertex] = edge_weights[vertex];
-        } else {
-            coarse_edge_weights[vertex] = edge_weights[vertex] + edge_weights[matched_vertex];
-            // Reset the edge weight of the matched vertex since it's merged with another vertex
-            edge_weights[matched_vertex] = 0.0;
-        }
-    }
-
-    return coarse_edge_weights;
-}
-
-// Function to update the vertex mapping after collapsing vertices
-std::vector<int> UpdateVertexMapping(const std::vector<std::pair<int, int>>& matching, const std::vector<int>& vertex_mapping) {
-    std::vector<int> new_vertex_mapping(vertex_mapping.size(), -1);
-
-    for (int vertex = 0; vertex < vertex_mapping.size(); vertex++) {
-        int matched_vertex = -1;
-        for (const auto& match : matching) {
-            if (match.first == vertex) {
-                matched_vertex = match.second;
-                break;
-            } else if (match.second == vertex) {
-                matched_vertex = match.first;
-                break;
-            }
-        }
-
-        if (matched_vertex != -1) {
-            int coarser_vertex = vertex_mapping[matched_vertex];
-            if (new_vertex_mapping[coarser_vertex] != -1) {
-                new_vertex_mapping[vertex] = new_vertex_mapping[coarser_vertex];
-            } else {
-                int new_index = new_vertex_mapping.size(); // Next available index
-                new_vertex_mapping[coarser_vertex] = new_index;
-                new_vertex_mapping[vertex] = new_index;
-            }
-        } else {
-            // If the current vertex is not matched, keep its existing mapping
-            new_vertex_mapping[vertex] = vertex_mapping[vertex];
-        }
-    }
-
-    return new_vertex_mapping;
-}
-
-Graph Coarsening() {
-    Graph coarse_graph = initial_graph; // Copy the initial graph representation
-    std::vector<std::vector<double>> edge_weights = graph.getEdgeWeights();
-
-    // Initialize a vector to store the mapping of vertices from finer to coarser levels
-    std::vector<int> vertex_mapping(initial_graph.size());
-    for (int i = 0; i < initial_graph.size(); i++) {
-        vertex_mapping[i] = i; // Initialize the mapping to be identity at the beginning
-    }
-
-    // Start the coarsening process until the coarsest level is reached
-    while (coarse_graph.size() > coarsest_graph_size) {
-        // Compute a matching of vertices in the current level
-        std::vector<std::pair<int, int>> matching = ComputeMatching(coarse_graph); // Compute a matching of vertices in the coarse_graph
-
-        // Collapse the matched vertices to form the coarser graph
-        coarse_graph = CollapseVertices(coarse_graph, matching); // Combine matched vertices to form a coarser graph
-
-        // Update the edge weights based on the collapsed vertices
-        UpdateEdgeWeights(coarse_graph, matching, edge_weights); // Update edge weights based on the matching
-
-        // Update the vertex mapping for the finer-to-coarser level mapping
-        vertex_mapping = UpdateVertexMapping(matching, vertex_mapping); // Update the vertex mapping for the next level
-
-        // Repeat the coarsening process until the coarsest level is reached
-    }
-
-    // Return the coarsest level graph
-    return coarse_graph;
-}
-
 std::vector<std::vector<int>> InitialPartitioning(int npartitions) {
     // Calculate the total weight of all vertices in the graph
     double total_weight = 0;
-    for (const auto& vertexPair : graph.getVertices()) {
+    for (const auto& vertexPair : coarsedGraph.getVertices()) {
         total_weight += vertexPair.second;
     }
 
@@ -178,13 +36,13 @@ std::vector<std::vector<int>> InitialPartitioning(int npartitions) {
 
     // Create an index vector to sort vertices based on their weights
     std::vector<int> sorted_vertices;
-    for (const auto& vertexPair : graph.getVertices()) {
+    for (const auto& vertexPair : coarsedGraph.getVertices()) {
         sorted_vertices.push_back(vertexPair.first);
     }
 
     // Sort vertices in descending order of their weights
-    std::sort(sorted_vertices.begin(), sorted_vertices.end(), [&graph](int a, int b) {
-        return graph.getVertexWeight(a) > graph.getVertexWeight(b);
+    std::sort(sorted_vertices.begin(), sorted_vertices.end(), [](int a, int b) {
+        return coarsedGraph.getVertexWeight(a) > coarsedGraph.getVertexWeight(b);
     });
 
     // Greedy assignment of vertices to partitions
@@ -201,64 +59,24 @@ std::vector<std::vector<int>> InitialPartitioning(int npartitions) {
 
         // Add the vertex to the partition
         partitions[min_weight_partition].push_back(vertex);
-        partition_weights[min_weight_partition] += graph.getVertexWeight(vertex);
+        partition_weights[min_weight_partition] += coarsedGraph.getVertexWeight(vertex);
     }
 
     return partitions;
 }
 
-// Function to perform the refinement process in a multithreaded manner.
-void MultithreadedRefinement(int nthreads, std::vector<std::vector<int>>& initial_partitions) {
-    int num_iterations = NUM_ITERATIONS;
-
-    // Calculate the number of vertices in each chunk for each thread.
-    int chunk_size = graph.getVertices().size() / nthreads;
-
-    // Create a list to store the partitioning for each thread.
-    std::vector<std::vector<int>> thread_partitions(nthreads);
-
-    // Copy the initial_partitions for each thread.
-    std::copy(initial_partitions.begin(), initial_partitions.end(), thread_partitions.begin());
-
-    // Create the mutex to synchronize the modification of thread_partitions.
-    std::mutex mutex;
-
-    // Create and start the threads.
-    std::vector<std::thread> threads;
-    for (int i = 0; i < nthreads; ++i) {
-        int start_vertex = i * chunk_size;
-        int end_vertex = (i + 1) * chunk_size;
-        if (i == nthreads - 1) {
-            end_vertex = graph.getVertices().size();
-        }
-        threads.emplace_back(RefinementStep, i, start_vertex, end_vertex, num_iterations, std::ref(thread_partitions));
-    }
-
-    // Wait for all threads to finish.
-    for (auto& thread : threads) {
-        thread.join();
-    }
-
-    // Combine the partitioning results from all threads.
-    initial_partitions.clear();
-    for (const auto& partition : thread_partitions) {
-        initial_partitions.emplace_back(partition);
-    }
-}
-
 // Function to perform a single step of the refinement process using the Kernighan-Lin algorithm
 // to improve the partition quality.
-void RefinementStep(std::vector<std::vector<int>>& partition) {
-    
-    std::vector<std::vector<double>> edge_weights = graph.getEdgeWeights();
+void RefinementStep(std::vector<std::vector<int>>& partition, const int i1, const int i2, const int i3, std::vector<std::vector<int>>& thread_partitions) {
+    std::unordered_map<std::pair<int, int>, double, HashPair> edge_weights = coarsedGraph.getEdgeWeights();
 
     // Get the number of vertices and partitions
-    int num_vertices = graph.getVertices().size();
+    int num_vertices = coarsedGraph.numVertices();
     int num_partitions = partition.size();
 
     // Calculate the target weight for each partition
     double total_weight = 0.0;
-    for (const auto& entry : edgeWeights) {
+    for (const auto& entry : edge_weights) {
         total_weight += entry.second;
     }
     double target_weight = total_weight / num_partitions;
@@ -266,9 +84,11 @@ void RefinementStep(std::vector<std::vector<int>>& partition) {
     // Initialize the partition gain for each vertex
     std::vector<double> vertex_gains(num_vertices, 0.0);
 
+    int vertex_partition;
+
     // Calculate the initial gain for each vertex in its current partition
-    for (int vertex = 0; vertex < num_vertices; ++vertex) {
-        int vertex_partition = -1;
+    for (int vertex = i1; vertex < i2; ++vertex) {
+        vertex_partition = -1;
         for (int i = 0; i < num_partitions; ++i) {
             if (std::find(partition[i].begin(), partition[i].end(), vertex) != partition[i].end()) {
                 vertex_partition = i;
@@ -278,8 +98,8 @@ void RefinementStep(std::vector<std::vector<int>>& partition) {
 
         for (int neighbor = 0; neighbor < num_vertices; ++neighbor) {
             if (neighbor != vertex) {
-                auto edge_weight_it = edgeWeights.find({vertex, neighbor});
-                double weight = (edge_weight_it != edgeWeights.end()) ? edge_weight_it->second : 0.0;
+                auto edge_weight_it = edge_weights.find({vertex, neighbor});
+                double weight = (edge_weight_it != edge_weights.end()) ? edge_weight_it->second : 0.0;
 
                 if (vertex_partition == -1) {
                     vertex_gains[vertex] += weight;
@@ -298,14 +118,14 @@ void RefinementStep(std::vector<std::vector<int>>& partition) {
     std::unordered_set<int> locked_vertices;
 
     // Perform swaps to improve the partition quality
-    for (int iter = 0; iter < num_vertices / 2; ++iter) { // A heuristic to limit the number of swaps
+    for (int iter = 0; iter < i3; ++iter) { // A heuristic to limit the number of swaps
 
         // Find the best pair of vertices to swap
         double best_gain = 0.0;
         int vertex_to_move = -1;
         int vertex_to_stay = -1;
 
-        for (int vertex = 0; vertex < num_vertices; ++vertex) {
+        for (int vertex = i1; vertex < i2; ++vertex) {
             if (locked_vertices.find(vertex) == locked_vertices.end() && (vertex_to_move == -1 || vertex_gains[vertex] > best_gain)) {
                 vertex_to_move = vertex;
                 best_gain = vertex_gains[vertex];
@@ -314,9 +134,11 @@ void RefinementStep(std::vector<std::vector<int>>& partition) {
 
         locked_vertices.insert(vertex_to_move);
 
+        int neighbor_partition;
+
         for (int neighbor = 0; neighbor < num_vertices; ++neighbor) {
             if (neighbor != vertex_to_move) {
-                int neighbor_partition = -1;
+                neighbor_partition = -1;
                 for (int i = 0; i < num_partitions; ++i) {
                     if (std::find(partition[i].begin(), partition[i].end(), neighbor) != partition[i].end()) {
                         neighbor_partition = i;
@@ -326,7 +148,7 @@ void RefinementStep(std::vector<std::vector<int>>& partition) {
 
                 double gain = vertex_gains[vertex_to_move];
                 if (neighbor_partition != -1) {
-                    gain -= 2.0 * edge_weights[vertex_to_move][neighbor];
+                    gain -= 2.0 * coarsedGraph.getEdgeWeight(vertex_to_move, neighbor);
                 }
 
                 if (gain > best_gain) {
@@ -355,17 +177,17 @@ void RefinementStep(std::vector<std::vector<int>>& partition) {
             }
         }
 
-        partition[neighbor_partition].push_back(vertex_to_move);
-        partition[vertex_partition].push_back(vertex_to_stay);
+        thread_partitions[neighbor_partition - i1].push_back(vertex_to_move);
+        thread_partitions[vertex_partition - i1].push_back(vertex_to_stay);
 
         // Update the gains for the affected vertices
         for (int neighbor = 0; neighbor < num_vertices; ++neighbor) {
             if (neighbor != vertex_to_move) {
                 if (std::find(partition[neighbor_partition].begin(), partition[neighbor_partition].end(), neighbor) != partition[neighbor_partition].end()) {
-                    vertex_gains[neighbor] -= 2.0 * edge_weights[vertex_to_move][neighbor];
+                    vertex_gains[neighbor] -= 2.0 * coarsedGraph.getEdgeWeight(vertex_to_move, neighbor);
                 }
                 else {
-                    vertex_gains[neighbor] += 2.0 * edge_weights[vertex_to_move][neighbor];
+                    vertex_gains[neighbor] += 2.0 * coarsedGraph.getEdgeWeight(vertex_to_move, neighbor);
                 }
             }
         }
@@ -373,13 +195,149 @@ void RefinementStep(std::vector<std::vector<int>>& partition) {
 }
 
 
-void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, string inputfile){
-    LoadGraphFromMemory(inputfile);      //load the graph from file
-    coarsedGraph = Coarsening();        //Coarse the initial graph
+// Function to perform the refinement process in a multithreaded manner.
+void MultithreadedRefinement(int nthreads, std::vector<std::vector<int>>& initial_partitions) {
+    int num_iterations = NUM_ITERATIONS;
 
+    // Calculate the number of vertices in each chunk for each thread.
+    int chunk_size = graph.numVertices() / nthreads;
+
+    // Create a list to store the partitioning for each thread.
+    std::vector<std::vector<int>> thread_partitions(nthreads);
+
+    // Copy the initial_partitions for each thread.
+    std::copy(initial_partitions.begin(), initial_partitions.end(), thread_partitions.begin());
+
+    // Create and start the threads.
+    std::vector<std::thread> threads;
+    for (int i = 0; i < nthreads; ++i) {
+        int start_vertex = i * chunk_size;
+        int end_vertex = (i + 1) * chunk_size;
+        if (i == nthreads - 1) {
+            end_vertex = graph.numVertices();
+        }
+
+        threads.emplace_back([i, start_vertex, end_vertex, num_iterations, &thread_partitions]() {
+            RefinementStep(thread_partitions, start_vertex, end_vertex, num_iterations, thread_partitions);
+        });
+    }
+
+    // Wait for all threads to finish.
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    // Combine the partitioning results from all threads.
+    initial_partitions.clear();
+    for (const auto& partition : thread_partitions) {
+        initial_partitions.emplace_back(partition);
+    }
+}
+
+void WriteOutputToFile(const std::vector<std::vector<int>>& partitions, string outputfile){
+    //TO DO
+    int partitionIndex = 0;
+    for (const auto& partition : partitions) {
+        std::cout << "Partition " << partitionIndex << ": ";
+        for (const auto& vertex : partition) {
+            std::cout << vertex << " ";
+        }
+        std::cout << std::endl;
+        partitionIndex++;
+    }
+}
+
+
+void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, string inputfile, string outputfile){
+    LoadGraphFromMemory(inputfile);      //load the graph from file
+
+    std::cout << "Original graph" << std::endl;
+
+    graph.print();
+
+    std::cout << "Coarsening the graph" << std::endl;
+
+    coarsedGraph = Coarsening(graph);        //Coarse the initial graph
+
+    coarsedGraph.print();
+
+    Graph restoredGraph = Uncoarsening(coarsedGraph);
+
+    std::cout << "Uncoarsening the graph" << std::endl;
+
+    restoredGraph.print();
+
+    /*
     std::vector<std::vector<int>> initial_partitions = InitialPartitioning(npartitions);
+
+    cout << "Initial partitions created" << endl;
 
     MultithreadedRefinement(nthreads, initial_partitions);
 
+    cout << "Refinement done" << endl;
+
+    // Uncoarsen the partitioned graph to the original size
+    std::vector<std::vector<int>> final_partitions = Uncoarsening(initial_partitions);
+
+    cout << "Final partitions created" << endl;
+
+    // Write the final partitioning to an output file (optional)
     WriteOutputToFile(final_partitions, outputfile);
+
+    cout << "Output wrote in the file" << endl;
+     */
+}
+
+
+int main() {
+
+    // Add vertices and edges to the global graph instance
+    graph.addVertex(0, 1.0);
+    graph.addVertex(1, 2.0);
+    graph.addVertex(2, 3.0);
+    graph.addVertex(3, 4.0);
+    graph.addVertex(4, 5.0);
+    graph.addVertex(5, 6.0);
+    graph.addVertex(6, 7.0);
+    graph.addVertex(7, 8.0);
+    graph.addVertex(8, 9.0);
+    graph.addVertex(9, 10.0);
+    graph.addVertex(10, 11.0);
+    graph.addVertex(11, 12.0);
+    graph.addVertex(12, 13.0);
+    graph.addVertex(13, 14.0);
+    graph.addVertex(14, 15.0);
+
+    graph.addEdge(0, 1, 0.5);
+    graph.addEdge(1, 2, 0.7);
+    graph.addEdge(2, 0, 0.3);
+    graph.addEdge(0, 3, 0.2);
+    graph.addEdge(1, 3, 0.4);
+    graph.addEdge(2, 3, 0.1);
+    graph.addEdge(3, 4, 0.8);
+    graph.addEdge(0, 4, 0.6);
+    graph.addEdge(1, 4, 0.9);
+    graph.addEdge(4, 5, 0.3);
+    graph.addEdge(5, 6, 0.1);
+    graph.addEdge(6, 7, 0.4);
+    graph.addEdge(7, 8, 0.6);
+    graph.addEdge(8, 9, 0.2);
+    graph.addEdge(9, 10, 0.5);
+    graph.addEdge(10, 11, 0.7);
+    graph.addEdge(11, 12, 0.9);
+    graph.addEdge(12, 13, 0.8);
+    graph.addEdge(13, 14, 0.3);
+    graph.addEdge(14, 0, 0.4);
+
+    // Set the number of threads and partitions
+    int nthreads = 4; // Change this to the desired number of threads
+    int npartitions = 2; // Change this to the desired number of partitions
+    float maxdeviation = 1.1; // Change this to the desired max deviation
+    std::string inputfile = "input_graph.txt"; // Change this to the input file name
+    std::string outputfile = "output_partition.txt"; // Change this to the output file name
+
+    // Call the algorithm function
+    MultithreadedMETIS(nthreads, npartitions, maxdeviation, inputfile, outputfile);
+
+    return 0;
 }
