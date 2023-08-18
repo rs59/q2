@@ -251,27 +251,15 @@ void WriteOutputToFile(const std::vector<std::vector<int>>& partitions, string o
 void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, string inputfile, string outputfile){
     LoadGraphFromMemory(inputfile);      //load the graph from file
 
-    std::cout << "Original graph" << std::endl;
-
-    graph.print();
-
-    std::cout << "Coarsening the graph" << std::endl;
-
     coarsedGraph = Coarsening(graph);        //Coarse the initial graph
 
-    coarsedGraph.print();
+    std::vector<std::vector<int>> initial_partitions = InitialPartitioning(npartitions);
+
+    std::vector<std::vector<int>> uncoarsened_partitions = UncoarsePartitions(coarsedGraph, initial_partitions);
 
     Graph restoredGraph = Uncoarsening(coarsedGraph);
 
-    std::cout << "Uncoarsening the graph" << std::endl;
-
-    restoredGraph.print();
-
     /*
-    std::vector<std::vector<int>> initial_partitions = InitialPartitioning(npartitions);
-
-    cout << "Initial partitions created" << endl;
-
     MultithreadedRefinement(nthreads, initial_partitions);
 
     cout << "Refinement done" << endl;
@@ -331,7 +319,7 @@ int main() {
 
     // Set the number of threads and partitions
     int nthreads = 4; // Change this to the desired number of threads
-    int npartitions = 2; // Change this to the desired number of partitions
+    int npartitions = 3; // Change this to the desired number of partitions
     float maxdeviation = 1.1; // Change this to the desired max deviation
     std::string inputfile = "input_graph.txt"; // Change this to the input file name
     std::string outputfile = "output_partition.txt"; // Change this to the output file name

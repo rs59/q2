@@ -40,3 +40,33 @@ Graph Uncoarsening(Graph& graph){
 
     return uncoarsened_graph;
 }
+
+std::vector<std::vector<int>> UncoarsePartitions(Graph& graph, std::vector<std::vector<int>>& partitions) {
+    int num_levels = graph.getCoarsingLevel();
+    std::vector<std::vector<int>> uncoarsed_partitions = partitions;
+
+    for (int level = num_levels - 1; level >= 0; level--) {
+        std::unordered_map<int, int> coarser_to_finer_mapping = graph.getMapping(level);
+
+        // Create a new vector to store the uncoarsed partitions at this level
+        std::vector<std::vector<int>> uncoarsed_temp(partitions.size());
+
+        for (const auto& entry : coarser_to_finer_mapping) {
+            int originalVertex = entry.first;
+            int coarserVertex = entry.second;
+
+            for(int i = 0; i < uncoarsed_partitions.size(); i++){
+                for(int j = 0; j < uncoarsed_partitions[i].size(); j++){
+                    if(uncoarsed_partitions[i][j] == coarserVertex){
+                        uncoarsed_temp[i].emplace_back(originalVertex);
+                    }
+                }
+            }
+        }
+
+        // Update the uncoarsed_partitions vector for this level
+        uncoarsed_partitions = uncoarsed_temp;
+    }
+
+    return uncoarsed_partitions;
+}
