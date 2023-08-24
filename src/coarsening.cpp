@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <unordered_set>
 
-int coarsest_graph_size = 5; //TO BE DEFINED
+int coarsest_graph_size = 100; //TO BE DEFINED
 
 // Function to compute matching between vertices for coarsening
 std::unordered_map<int, int> ComputeMatching(Graph& graph_cm) {
@@ -125,6 +125,8 @@ void UpdateEdgeWeights(Graph& graph_ue, const std::unordered_map<std::pair<int, 
 Graph Coarsening(Graph& graph){
     Graph coarsened_graph = graph;
 
+    int i = 0;
+
     while(coarsened_graph.size() > coarsest_graph_size){
         Graph temp_graph = coarsened_graph;
 
@@ -135,6 +137,8 @@ Graph Coarsening(Graph& graph){
         std::unordered_map<std::pair<int, int>, double, HashPair> edgeWeights = temp_graph.getEdgeWeights();
 
         UpdateEdgeWeights(coarsened_graph, edgeWeights);
+
+        i++;
     }
 
     return coarsened_graph;
