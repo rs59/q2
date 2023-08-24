@@ -11,7 +11,7 @@
 
 using namespace std;
 
-int NUM_ITERATIONS = 100; //TO BE DEFINED
+int NUM_ITERATIONS = 5; //TO BE DEFINED
 
 //To be defined in LoadGraphFromMemory
 Graph graph;
@@ -27,6 +27,37 @@ std::unordered_set<int> locked_vertices;  //vertices that won't be moved in this
 
 void LoadGraphFromMemory(string inputfile){
     //TO-DO
+}
+
+double getCutSize(Graph& graph, std::vector<std::vector<int>>& partitions){
+    std::unordered_map<std::pair<int, int>, double, HashPair> edgeWeights = graph.getEdgeWeights();
+
+    double cutSize = 0.0;
+
+    for(const auto& edge : edgeWeights){
+        int nodeA = edge.first.first;
+        int nodeB = edge.first.second;
+        double value = edge.second;
+
+        int partitionA = -1;
+        int partitionB = -1;
+
+        for(int i=0; i<partitions.size(); i++){
+            if (std::find(partitions[i].begin(), partitions[i].end(), nodeA) != partitions[i].end()) {
+                partitionA = i;
+            }
+
+            if (std::find(partitions[i].begin(), partitions[i].end(), nodeB) != partitions[i].end()) {
+                partitionB = i;
+            }
+        }
+
+        if(partitionA != partitionB){
+            cutSize += value;
+        }
+    }
+
+    return cutSize;
 }
 
 std::vector<std::vector<int>> InitialPartitioning(int npartitions) {
@@ -79,7 +110,7 @@ std::vector<std::vector<int>> InitialPartitioning(int npartitions) {
 void RefinementStep(std::mutex& mtx, std::vector<std::vector<int>>& partition, const int start, const int end, const int n_it) {
     int vertex_partition;
 
-    // Calculate the initial gain for each vertex in its current partition
+    // Calculate initial vertex gains
     for (int vertex = start; vertex < end; vertex++) {
         vertex_partition = -1;
         for (int i = 0; i < num_partitions; i++) {
@@ -89,6 +120,7 @@ void RefinementStep(std::mutex& mtx, std::vector<std::vector<int>>& partition, c
             }
         }
 
+        // Calculate the initial gain for each vertex in its current partition
         for (int neighbor = 0; neighbor < num_vertices; neighbor++) {
             if (neighbor != vertex) {
                 auto edge_weight_it = edge_weights.find({vertex, neighbor});
@@ -104,82 +136,86 @@ void RefinementStep(std::mutex& mtx, std::vector<std::vector<int>>& partition, c
         }
     }
 
-    // Perform swaps to improve the partition quality
-    for (int iter = 0; iter < n_it; iter++) { // A heuristic to limit the number of swaps
-
-        // Find the best pair of vertices to swap
+    // Perform moves to improve the partition quality
+    for (int iter = 0; iter < n_it; iter++) {
         double best_gain = 0.0;
         int vertex_to_move = -1;
-        int vertex_to_stay = -1;
 
+        // Find the vertex with the highest gain in its own chunk
         for (int vertex = start; vertex < end; vertex++) {
-            if (locked_vertices.find(vertex) == locked_vertices.end() && (vertex_to_move == -1 || vertex_gains[vertex] > best_gain)) {
+            if (locked_vertices.find(vertex) == locked_vertices.end() && vertex_gains[vertex] > best_gain) {
                 vertex_to_move = vertex;
                 best_gain = vertex_gains[vertex];
             }
         }
 
+        if (vertex_to_move == -1) {
+            // No more unlocked vertices with positive gain, stop refining
+            break;
+        }
+
         locked_vertices.insert(vertex_to_move);
 
-        int neighbor_partition;
+        // Calculate the best partition to move the selected vertex to
+        int vertex_partition = -1;
+        for (int i = 0; i < num_partitions; i++) {
+            if (std::find(partition[i].begin(), partition[i].end(), vertex_to_move) != partition[i].end()) {
+                vertex_partition = i;
+                break;
+            }
+        }
+
+        int best_neighbor_partition = -1;
+        int vertex_to_stay = -1;
+        best_gain = 0.0;
 
         vector<int> neighbors = graph.getNeighbors(vertex_to_move);
-        for(int i=0; i < neighbors.size(); i++){
+        for (int i = 0; i < neighbors.size(); i++) {
+
             int neighbor = neighbors[i];
-            neighbor_partition = -1;
-            for (int i = 0; i < num_partitions; i++) {
-                if (std::find(partition[i].begin(), partition[i].end(), neighbor) != partition[i].end()) {
-                    neighbor_partition = i;
+            int neighbor_partition = -1;
+            for (int j = 0; j < num_partitions; j++) {
+                if (std::find(partition[j].begin(), partition[j].end(), neighbor) != partition[j].end()) {
+                    neighbor_partition = j;
                     break;
                 }
+            }
+
+            if(neighbor_partition == vertex_partition){
+                break;
             }
 
             double gain = vertex_gains[vertex_to_move];
             gain -= 2.0 * graph.getEdgeWeight(vertex_to_move, neighbor);
 
             if (gain > best_gain) {
+                best_neighbor_partition = neighbor_partition;
                 vertex_to_stay = neighbor;
                 best_gain = gain;
             }
         }
 
-        locked_vertices.insert(vertex_to_stay);
-
-        //Adjusted until here
-
-        // Swap the two selected vertices between their partitions
-        for (int i = 0; i < num_partitions; i++) {
-            auto it = std::find(partition[i].begin(), partition[i].end(), vertex_to_move);
-            if (it != partition[i].end()) {
-                partition[i].erase(it);
-                break;
-            }
+        // Move the selected vertex to its best partition
+        auto it_move = std::find(partition[vertex_partition].begin(), partition[vertex_partition].end(), vertex_to_move);
+        if (it_move != partition[vertex_partition].end()) {
+            partition[vertex_partition].erase(it_move);
+            partition[best_neighbor_partition].push_back(vertex_to_move);
         }
-
-        for (int i = 0; i < num_partitions; i++) {
-            auto it = std::find(partition[i].begin(), partition[i].end(), vertex_to_stay);
-            if (it != partition[i].end()) {
-                partition[i].erase(it);
-                break;
-            }
-        }
-
-        partition[neighbor_partition - start].push_back(vertex_to_move);
-        partition[vertex_partition - start].push_back(vertex_to_stay);
 
         // Update the gains for the affected vertices
         for (int neighbor = 0; neighbor < num_vertices; neighbor++) {
             if (neighbor != vertex_to_move) {
-                if (std::find(partition[neighbor_partition].begin(), partition[neighbor_partition].end(), neighbor) != partition[neighbor_partition].end()) {
+                if (std::find(partition[best_neighbor_partition].begin(), partition[best_neighbor_partition].end(), neighbor) !=
+                    partition[best_neighbor_partition].end()) {
                     vertex_gains[neighbor] -= 2.0 * graph.getEdgeWeight(vertex_to_move, neighbor);
-                }
-                else {
+                } else {
                     vertex_gains[neighbor] += 2.0 * graph.getEdgeWeight(vertex_to_move, neighbor);
                 }
             }
         }
     }
 }
+
 
 
 // Function to perform the refinement process in a multithreaded manner.
@@ -196,11 +232,11 @@ void MultithreadedRefinement(int nthreads, std::vector<std::vector<int>>& initia
     edge_weights = graph.getEdgeWeights();
 
     // Get the number of vertices and partitions
-    int num_vertices = graph.numVertices();
-    int num_partitions = initial_partitions.size();
+    num_vertices = graph.numVertices();
+    num_partitions = initial_partitions.size();
 
     // Calculate the target weight for each partition
-    double total_weight = 0.0;
+    total_weight = 0.0;
     for (const auto& entry : edge_weights) {
         total_weight += entry.second;
     }
@@ -260,14 +296,19 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
 
     WriteOutputToFile(uncoarsened_partitions, outputfile);
 
-    MultithreadedRefinement(nthreads, uncoarsened_partitions);
+    double cutSize = getCutSize(graph, uncoarsened_partitions);
 
-    Graph restoredGraph = Uncoarsening(coarsedGraph);
+    cout << "Cut size before refinement: " << cutSize << endl;
+
+    MultithreadedRefinement(nthreads, uncoarsened_partitions);
 
     cout << "Write partitions after refinement:" << endl;
 
     WriteOutputToFile(uncoarsened_partitions, outputfile);
 
+    cutSize = getCutSize(graph, uncoarsened_partitions);
+
+    cout << "Cut size before refinement: " << cutSize << endl;
 }
 
 
@@ -288,68 +329,31 @@ int main() {
     graph.addVertex(12, 54.0);
     graph.addVertex(13, 71.0);
     graph.addVertex(14, 15.0);
-    graph.addVertex(15, 1.0);
-    graph.addVertex(16, 112.0);
-    graph.addVertex(17, 23.0);
-    graph.addVertex(18, 15.0);
-    graph.addVertex(19, 18.0);
-    graph.addVertex(20, 4.0);
-    graph.addVertex(21, 65.0);
-    graph.addVertex(22, 23.0);
-    graph.addVertex(23, 81.0);
-    graph.addVertex(24, 99.0);
-    graph.addVertex(25, 5.0);
-    graph.addVertex(26, 12.0);
-    graph.addVertex(27, 11.0);
-    graph.addVertex(28, 33.0);
-    graph.addVertex(29, 45.0);
 
-    graph.addEdge(0, 1, 0.5);
+
+    graph.addEdge(0, 1, 0.7);
     graph.addEdge(0, 2, 0.3);
-    graph.addEdge(0, 3, 0.6);
-    graph.addEdge(0, 4, 0.7);
-    graph.addEdge(1, 5, 0.9);
-    graph.addEdge(1, 6, 0.8);
-    graph.addEdge(2, 7, 0.2);
-    graph.addEdge(2, 8, 0.4);
-    graph.addEdge(3, 9, 0.1);
-    graph.addEdge(3, 10, 0.3);
-    graph.addEdge(4, 11, 0.6);
-    graph.addEdge(4, 12, 0.8);
-    graph.addEdge(5, 13, 0.5);
-    graph.addEdge(5, 14, 0.7);
-    graph.addEdge(6, 15, 0.2);
-    graph.addEdge(6, 16, 0.4);
-    graph.addEdge(7, 17, 0.9);
-    graph.addEdge(7, 18, 0.1);
-    graph.addEdge(8, 19, 0.3);
-    graph.addEdge(8, 20, 0.6);
-    graph.addEdge(9, 21, 0.8);
-    graph.addEdge(9, 22, 0.5);
-    graph.addEdge(10, 23, 0.7);
-    graph.addEdge(10, 24, 0.2);
-    graph.addEdge(11, 25, 0.4);
-    graph.addEdge(11, 26, 0.9);
-    graph.addEdge(12, 27, 0.1);
-    graph.addEdge(12, 28, 0.3);
-    graph.addEdge(13, 29, 0.6);
-    graph.addEdge(13, 0, 0.8);
-    graph.addEdge(14, 1, 0.5);
-    graph.addEdge(15, 2, 0.7);
-    graph.addEdge(16, 3, 0.4);
-    graph.addEdge(17, 4, 0.2);
-    graph.addEdge(18, 5, 0.9);
-    graph.addEdge(19, 6, 0.1);
-    graph.addEdge(20, 7, 0.3);
-    graph.addEdge(21, 8, 0.6);
-    graph.addEdge(22, 9, 0.8);
-    graph.addEdge(23, 10, 0.5);
-    graph.addEdge(24, 11, 0.7);
-    graph.addEdge(25, 12, 0.4);
-    graph.addEdge(26, 13, 0.2);
-    graph.addEdge(27, 14, 0.9);
-    graph.addEdge(28, 15, 0.1);
-    graph.addEdge(29, 16, 0.3);
+    graph.addEdge(0, 3, 0.5);
+    graph.addEdge(1, 2, 0.9);
+    graph.addEdge(1, 4, 0.2);
+    graph.addEdge(2, 3, 0.4);
+    graph.addEdge(2, 5, 0.8);
+    graph.addEdge(3, 6, 0.6);
+    graph.addEdge(4, 5, 0.1);
+    graph.addEdge(4, 7, 0.4);
+    graph.addEdge(5, 6, 0.7);
+    graph.addEdge(5, 8, 0.3);
+    graph.addEdge(6, 9, 0.9);
+    graph.addEdge(7, 8, 0.5);
+    graph.addEdge(8, 9, 0.2);
+    graph.addEdge(8, 10, 0.6);
+    graph.addEdge(9, 11, 0.4);
+    graph.addEdge(10, 11, 0.8);
+    graph.addEdge(10, 12, 0.7);
+    graph.addEdge(11, 13, 0.3);
+    graph.addEdge(11, 14, 0.9);
+    graph.addEdge(12, 13, 0.1);
+    graph.addEdge(13, 14, 0.5);
 
     // Set the number of threads and partitions
     int nthreads = 1; // Change this to the desired number of threads
@@ -360,8 +364,6 @@ int main() {
 
     // Call the algorithm function
     MultithreadedMETIS(nthreads, npartitions, maxdeviation, inputfile, outputfile);
-
-    cout << "THE END" << endl;
 
     return 0;
 }
