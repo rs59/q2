@@ -85,7 +85,7 @@ protected:
 
   // Test that ./2023partition 3.1 2 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv (wrong arguments) fails
   // Concretely: 1st parameter is not a positive int
-  void test_1stparam_fails(void) {
+  void test_1stparamwrong_fails(void) {
     bool DESIRED_SUCCESS = false; // Expect failure
     std::pair<int, std::string> p = exec("./2023partition 3.1 2 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv");
     std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
