@@ -38,7 +38,7 @@ std::pair<int, std::string> exec(const char* cmd)
 }
 
 
-class Test : public CPPUNIT_NS::TestCase
+class Execution_Tests_2023partition : public CPPUNIT_NS::TestCase
 {
   CPPUNIT_TEST_SUITE(Execution_Tests_2023partition);
   CPPUNIT_TEST(allparamsgood_succeeds);
