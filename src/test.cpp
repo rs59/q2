@@ -51,9 +51,6 @@ class Execution_Tests_2023partition : public CPPUNIT_NS::TestCase
   // TODO: Test that incorrectly structured input file is rejected
   CPPUNIT_TEST_SUITE_END();
 
-  CPPUNIT_TEST_SUITE(Partitioning_Tests_2023partition);
-  // TODO: Test that correctly structured input file is correctly interpreted into array
-  CPPUNIT_TEST_SUITE_END();
 
 public:
   void setUp(void) {}
