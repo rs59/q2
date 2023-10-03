@@ -40,14 +40,19 @@ std::pair<int, std::string> exec(const char* cmd)
 
 class Test : public CPPUNIT_NS::TestCase
 {
-  CPPUNIT_TEST_SUITE(Test);
-  CPPUNIT_TEST(test2023Partition_execution);
-  CPPUNIT_TEST(test2023Partition_execution2);
-  CPPUNIT_TEST(test2023Partition_execution3);
-  CPPUNIT_TEST(test2023Partition_execution4);
-  CPPUNIT_TEST(test2023Partition_execution5);
-  CPPUNIT_TEST(test2023Partition_execution6);
-  CPPUNIT_TEST(test2023Partition_execution7);
+  CPPUNIT_TEST_SUITE(Execution_Tests_2023partition);
+  CPPUNIT_TEST(allparamsgood_succeeds);
+  CPPUNIT_TEST(noarguments_fails);
+  CPPUNIT_TEST(1stparamwrong_fails);
+  CPPUNIT_TEST(2ndparamwrong_fails);
+  CPPUNIT_TEST(3rdparamwrong_fails);
+  CPPUNIT_TEST(4thparamwrong_fails);
+  CPPUNIT_TEST(5thparamwrong_fails);
+  // TODO: Test that incorrectly structured input file is rejected
+  CPPUNIT_TEST_SUITE_END();
+
+  CPPUNIT_TEST_SUITE(Partitioning_Tests_2023partition);
+  // TODO: Test that correctly structured input file is correctly interpreted into array
   CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -56,8 +61,20 @@ public:
 
 protected:
 
+
+  // Test that ./2023partition 1 2 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv (proper arguments) succeeds
+  void allparamsgood_succeeds(void) {
+    bool DESIRED_SUCCESS = true; // Expect success
+    std::pair<int, std::string> p = exec("./2023partition 1 2 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv");
+    std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
+    if(DESIRED_SUCCESS ? p.first!=EXIT_SUCCESS : p.first==EXIT_SUCCESS) { 
+      exit(1);
+    }
+  }
+
+
   // Test that ./2023partition (no arguments) fails AND returns an error message
-  void test2023Partition_execution(void) {
+  void noarguments_fails(void) {
     bool DESIRED_SUCCESS = false; // Expect failure
     std::pair<int, std::string> p = exec("./2023partition");
     std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
@@ -69,19 +86,9 @@ protected:
     }
   }
 
-  // Test that ./2023partition 1 2 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv (proper arguments) succeeds
-  void test2023Partition_execution2(void) {
-    bool DESIRED_SUCCESS = true; // Expect success
-    std::pair<int, std::string> p = exec("./2023partition 1 2 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv");
-    std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
-    if(DESIRED_SUCCESS ? p.first!=EXIT_SUCCESS : p.first==EXIT_SUCCESS) { 
-      exit(1);
-    }
-  }
-
   // Test that ./2023partition 3.1 2 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv (wrong arguments) fails
   // Concretely: 1st parameter is not a positive int
-  void test2023Partition_execution3(void) {
+  void 1stparam_fails(void) {
     bool DESIRED_SUCCESS = false; // Expect failure
     std::pair<int, std::string> p = exec("./2023partition 3.1 2 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv");
     std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
@@ -92,7 +99,7 @@ protected:
 
   // Test that ./2023partition 1 A 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv (wrong arguments) fails
   // Concretely: 2nd parameter is not a positive int
-  void test2023Partition_execution4(void) {
+  void 2ndparamwrong_fails(void) {
     bool DESIRED_SUCCESS = false; // Expect failure
     std::pair<int, std::string> p = exec("./2023partition 1 A 1.10 ../resources/testModelA.gv ../resources/testModelA-2part.gv");
     std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
@@ -103,7 +110,7 @@ protected:
 
   // Test that ./2023partition 1 2 0.99 ../resources/testModelA.gv ../resources/testModelA-2part.gv (wrong arguments) fails
   // Concretely: 3rd parameter is not a float greater than 1
-  void test2023Partition_execution5(void) {
+  void 3rdparamwrong_fails(void) {
     bool DESIRED_SUCCESS = false; // Expect failure
     std::pair<int, std::string> p = exec("./2023partition 1 2 0.95 ../resources/testModelA.gv ../resources/testModelA-2part.gv");
     std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
@@ -114,7 +121,7 @@ protected:
 
   // Test that ./2023partition 1 2 1.10 ../resources/testModelaaaaA.gv ../resources/testModelA-2part.gv (wrong arguments) fails
   // Concretely: 4th parameter file does not exist
-  void test2023Partition_execution6(void) {
+  void 4thparamwrong_fails(void) {
     bool DESIRED_SUCCESS = false; // Expect failure
     std::pair<int, std::string> p = exec("./2023partition 1 2 1.10 ../resources/testModelaaaA.gv ../resources/testModelA-2part.gv");
     std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
@@ -125,7 +132,7 @@ protected:
 
   // Test that ./2023partition 1 2 1.10 ../resources/testModelA.gv ../asbdsad12/qq.gv (wrong arguments) fails
   // Concretely: 5th parameter file is not writable
-  void test2023Partition_execution7(void) {
+  void 5thparamwrong_fails(void) {
     bool DESIRED_SUCCESS = false; // Expect failure
     std::pair<int, std::string> p = exec("./2023partition 1 2 1.10 ../resources/testModelA.gv ../asbdsad12/qq.gv");
     std::cout << " expecting_" << (DESIRED_SUCCESS ? "SUCCESS" : "FAILURE") << " exit_code:" << p.first << " stdoutl1:" << p.second.substr(0, p.second.find('\n'));
