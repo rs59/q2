@@ -1,25 +1,50 @@
-#include <iostream>
 #include "graph.h"
 #include <vector>
 #include <algorithm>
 #include <unordered_set>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
-int coarsest_graph_size = 100; //TO BE DEFINED
+int coarsest_graph_size = 10; //TO BE DEFINED
+
+int current_count;
 
 // Function to compute matching between vertices for coarsening
-std::unordered_map<int, int> ComputeMatching(Graph& graph_cm) {
-    std::unordered_map<int, int> matching;
-    std::unordered_set<int> unmatchedVertices;
-    std::unordered_map<int, double> vertices = graph_cm.getVertices();
+void ComputeMatchingSubset(Graph& graph_cm, std::unordered_map<int, int>& matching, std::unordered_set<int>& unmatchedVertices,  std::mutex& mutex, std::mutex&barrierMutex,
+                           const std::unordered_map<int, double>& vertices, int start, int end, int numThreads, std::condition_variable& cv) {
+    mutex.unlock();  //let an other thread start
 
-    // Populate the set of unmatched vertices
-    for (const auto& vertex : vertices) {
-        unmatchedVertices.insert(vertex.first);
+    //Populate the set of unmatched vertices
+    auto vertexIterator = vertices.begin();
+    std::advance(vertexIterator, start); // Move the iterator to the starting position
+    for (int i = start; i < end && vertexIterator != vertices.end(); ++i, ++vertexIterator) {
+        unmatchedVertices.insert(vertexIterator->first);
     }
 
-    for (const auto& vertex : vertices) {
-        int vertexId = vertex.first;
+    //barrier implementation with cv
+    std::unique_lock<std::mutex> lock(barrierMutex);
+    current_count++;
+    if (current_count == numThreads) {
+        // All threads have arrived, notify all waiting threads
+        current_count = 0;
+        cv.notify_all();
+    } else {
+        // Not all threads have arrived, wait
+        cv.wait(lock, [] { return current_count == 0; });
+    }
+
+    vertexIterator = vertices.begin();
+    std::advance(vertexIterator, start); // Move the iterator to the starting position
+    for (int i = start; i < end && vertexIterator != vertices.end(); ++i, ++vertexIterator) {
+        //Acquire the lock
+        std::unique_lock<std::mutex> lock(mutex);
+
+        int vertexId = vertexIterator->first;
+
         if (matching.find(vertexId) != matching.end()) {
+            //Release the lock
+            lock.unlock();
             continue; // Skip already matched vertices
         }
 
@@ -40,13 +65,94 @@ std::unordered_map<int, int> ComputeMatching(Graph& graph_cm) {
             unmatchedVertices.erase(vertexId);
             unmatchedVertices.erase(matched_neighbor);
         }
+
+        //Release the lock
+        lock.unlock();
+    }
+}
+
+// Function to compute matching between vertices for coarsening
+std::unordered_map<int, int> ComputeMatching(Graph& graph_cm, int numThreads) {
+    std::unordered_map<int, int> matching;
+    std::unordered_set<int> unmatchedVertices;
+    std::unordered_map<int, double> vertices = graph_cm.getVertices();
+
+    // Create a single mutex for synchronization
+    std::mutex mutex;
+
+    //Create a barrier mutex
+    std::mutex barrierMutex;
+
+    // Divide the work among three threads
+    int verticesPerThread = vertices.size() / numThreads;
+
+    current_count = 0;  //reset barrier ctr
+    std::condition_variable cv;
+
+    // Create and join threads in a loop
+    std::vector<std::thread> threads;
+    for (int i = 0; i < numThreads; i++) {
+        mutex.lock();  //This will be unlocked by thread after it is correctly created, to avoid to pass to multiple threds the same start and end
+        int start = i * verticesPerThread;
+        int end = (i + 1) * verticesPerThread;
+
+        if (i == numThreads - 1) {
+            end = vertices.size(); // Handle the last thread's range
+        }
+
+        threads.emplace_back([&] {
+            ComputeMatchingSubset(graph_cm, matching, unmatchedVertices, std::ref(mutex), std::ref(barrierMutex), vertices, start, end, numThreads, std::ref(cv));
+        });
+    }
+
+    // Wait for all threads to finish
+    for (std::thread& thread : threads) {
+        thread.join();
     }
 
     return matching;
 }
 
 
-Graph CollapseVertices(Graph& graph_cv, std::unordered_map<int, int>& matching) {
+void CollapseVerticesSubset(Graph& graph_cv, Graph& coarsed_graph, std::unordered_map<int, int>& matching, std::mutex& mutex, std::unordered_map<int,int>& vertices_map, std::unordered_map<int, double>& vertices, int& newVertexCtr, int start, int end) {
+    //Release the lock so that other threads can be created
+    mutex.unlock();
+
+    auto vertexIterator = vertices.begin();
+    std::advance(vertexIterator, start); // Move the iterator to the starting position
+    for (int i = start; i < end && vertexIterator != vertices.end(); ++i, ++vertexIterator) {
+        //Acquire the lock
+        std::unique_lock<std::mutex> lock(mutex);
+
+        int vertexId = vertexIterator->first;
+
+        if (vertices_map.find(vertexId) != vertices_map.end()) {
+            //Release the lock
+            lock.unlock();
+            continue; // Skip already inserted vertices
+        }
+        auto matched_vertex_it = matching.find(vertexId);
+
+        if (matched_vertex_it != matching.end()) {
+            // Key (vertexID) was found in the map
+            int matched_neighbor = matched_vertex_it->second; // Get the matched neighbor
+            double new_weight = graph_cv.getVertexWeight(vertexId) + graph_cv.getVertexWeight(matched_neighbor);
+            coarsed_graph.addVertex(newVertexCtr, new_weight);  //collapse the vertices
+            vertices_map[vertexId] = newVertexCtr;
+            vertices_map[matched_neighbor] = newVertexCtr;
+            newVertexCtr = newVertexCtr + 1;
+        } else {
+            // Key (vertexID) was not found in the map
+            coarsed_graph.addVertex(newVertexCtr, graph_cv.getVertexWeight(vertexId));
+            vertices_map[vertexId] = newVertexCtr;
+            newVertexCtr = newVertexCtr + 1;
+        }
+        //Release the lock
+        lock.unlock();
+    }
+}
+
+Graph CollapseVertices(Graph& graph_cv, std::unordered_map<int, int>& matching, int numThreads) {
     Graph coarsed_graph;
 
     //save in the new coarsed_graph the previous coarsening mappings
@@ -59,28 +165,33 @@ Graph CollapseVertices(Graph& graph_cv, std::unordered_map<int, int>& matching) 
     std::unordered_map<int,int> vertices_map;  //store the mapping between coarsed vertices and original ones {original vertex, new vertex}
     std::unordered_map<int, double> vertices = graph_cv.getVertices();
 
-    int i = 0; //the new vertices numeration for coarsed graph
-    for (const auto& vertex : vertices) {
-        int vertexId = vertex.first;
-        if (vertices_map.find(vertexId) != vertices_map.end()) {
-            continue; // Skip already inserted vertices
-        }
-        auto matched_vertex_it = matching.find(vertexId);
+    // Create a single mutex for synchronization
+    std::mutex mutex;
 
-        if (matched_vertex_it != matching.end()) {
-            // Key (vertexID) was found in the map
-            int matched_neighbor = matched_vertex_it->second; // Get the matched neighbor
-            double new_weight = graph_cv.getVertexWeight(vertexId) + graph_cv.getVertexWeight(matched_neighbor);
-            coarsed_graph.addVertex(i, new_weight);  //collapse the vertices
-            vertices_map[vertexId] = i;
-            vertices_map[matched_neighbor] = i;
-            i = i + 1;
-        } else {
-            // Key (vertexID) was not found in the map
-            coarsed_graph.addVertex(i, graph_cv.getVertexWeight(vertexId));
-            vertices_map[vertexId] = i;
-            i = i + 1;
+    // Divide the work among three threads
+    int verticesPerThread = vertices.size() / numThreads;
+
+    int newVertexCtr = 0;  //this will be shared among threads to keep count of new vertices
+
+    // Create and join threads in a loop
+    std::vector<std::thread> threads;
+    for (int i = 0; i < numThreads; i++) {
+        mutex.lock();  //This will be unlocked by thread after it is correctly created, to avoid to pass to multiple threds the same start and end
+        int start = i * verticesPerThread;
+        int end = (i + 1) * verticesPerThread;
+
+        if (i == numThreads - 1) {
+            end = vertices.size(); // Handle the last thread's range
         }
+
+        threads.emplace_back([&] {
+            CollapseVerticesSubset(graph_cv, coarsed_graph, matching, std::ref(mutex), vertices_map, vertices, newVertexCtr, start, end);
+        });
+    }
+
+    // Wait for all threads to finish
+    for (std::thread& thread : threads) {
+        thread.join();
     }
 
     coarsed_graph.pushBackMapping(vertices_map);
@@ -91,15 +202,16 @@ Graph CollapseVertices(Graph& graph_cv, std::unordered_map<int, int>& matching) 
 }
 
 // Function to update the edge weights after collapsing vertices
-void UpdateEdgeWeights(Graph& graph_ue, const std::unordered_map<std::pair<int, int>, double, HashPair>& edge_weights) {
-    std::unordered_map<int,int> vertices_map = graph_ue.getMapping(graph_ue.getCoarsingLevel() - 1);
+void UpdateEdgeWeightsSubset(Graph& graph_ue, const std::unordered_map<std::pair<int, int>, double, HashPair>& edge_weights, std::unordered_map<int,int>& vertices_map, std::unordered_map<std::pair<int, int>, double, HashPair>& edge_weights_updated, std::mutex& mutex, int start, int end) {
+    //Release the lock
+    mutex.unlock();
 
-    std::unordered_map<std::pair<int, int>, double, HashPair> edge_weights_updated;
-
-    for (const auto& entry : edge_weights) {
-        int nodeA = entry.first.first;
-        int nodeB = entry.first.second;
-        double value = entry.second;
+    auto edgeIterator = edge_weights.begin();
+    std::advance(edgeIterator, start); // Move the iterator to the starting position
+    for (int i = start; i < end && edgeIterator != edge_weights.end(); ++i, ++edgeIterator) {
+        int nodeA = edgeIterator->first.first;
+        int nodeB = edgeIterator->first.second;
+        double value = edgeIterator->second;
 
         if (vertices_map.find(nodeA) != vertices_map.end() && vertices_map.find(nodeB) != vertices_map.end()) {
             int coarsedSource = vertices_map.at(nodeA);
@@ -122,7 +234,41 @@ void UpdateEdgeWeights(Graph& graph_ue, const std::unordered_map<std::pair<int, 
     }
 }
 
-Graph Coarsening(Graph& graph){
+// Function to update the edge weights after collapsing vertices
+void UpdateEdgeWeights(Graph& graph_ue, const std::unordered_map<std::pair<int, int>, double, HashPair>& edge_weights, int numThreads) {
+    std::unordered_map<int,int> vertices_map = graph_ue.getMapping(graph_ue.getCoarsingLevel() - 1);
+
+    std::unordered_map<std::pair<int, int>, double, HashPair> edge_weights_updated;
+
+    // Create a single mutex for synchronization
+    std::mutex mutex;
+
+    // Divide the work among three threads
+    int verticesPerThread = edge_weights.size() / numThreads;
+
+    // Create and join threads in a loop
+    std::vector<std::thread> threads;
+    for (int i = 0; i < numThreads; i++) {
+        mutex.lock();  //This will be unlocked by thread after it is correctly created, to avoid to pass to multiple threds the same start and end
+        int start = i * verticesPerThread;
+        int end = (i + 1) * verticesPerThread;
+
+        if (i == numThreads - 1) {
+            end = edge_weights.size(); // Handle the last thread's range
+        }
+
+        threads.emplace_back([&] {
+            UpdateEdgeWeightsSubset(graph_ue, edge_weights, vertices_map, edge_weights_updated, std::ref(mutex), start, end);
+        });
+    }
+
+    // Wait for all threads to finish
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+}
+
+Graph Coarsening(Graph& graph, int nthreads){
     Graph coarsened_graph = graph;
 
     int i = 0;
@@ -130,13 +276,13 @@ Graph Coarsening(Graph& graph){
     while(coarsened_graph.size() > coarsest_graph_size){
         Graph temp_graph = coarsened_graph;
 
-        std::unordered_map<int, int> matching = ComputeMatching(temp_graph);
+        std::unordered_map<int, int> matching = ComputeMatching(temp_graph, nthreads);
 
-        coarsened_graph = CollapseVertices(temp_graph, matching);   //graph with collapsed vertices and no edges
+        coarsened_graph = CollapseVertices(temp_graph, matching, nthreads);   //graph with collapsed vertices and no edges
 
         std::unordered_map<std::pair<int, int>, double, HashPair> edgeWeights = temp_graph.getEdgeWeights();
 
-        UpdateEdgeWeights(coarsened_graph, edgeWeights);
+        UpdateEdgeWeights(coarsened_graph, edgeWeights, nthreads);
 
         i++;
     }

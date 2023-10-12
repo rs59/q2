@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <unordered_map>
+#include <algorithm>
 
 // Hash function for pairs (used for edgeWeights unordered_map)
     struct HashPair {
@@ -22,12 +23,47 @@ public:
 
     // Copy constructor
     Graph(const Graph& other) {
+        this->clear();
+
         vertices = other.vertices;
         adjacencyList = other.adjacencyList;
         edgeWeights = other.edgeWeights;
-        coarserToFinerMappings = other.coarserToFinerMappings;
-        edgesMappings = other.edgesMappings;
-        verticesWeightsMapping = other.verticesWeightsMapping;
+
+        for(std::unordered_map<int, int> coarser_to_finer_mapping : other.coarserToFinerMappings){
+            this->pushBackMapping(coarser_to_finer_mapping);
+        }
+        for(std::unordered_map<std::pair<int, int>, double, HashPair> edgesMapping : other.edgesMappings){
+            this->pushBackMappingEdges(edgesMapping);
+        }
+        for(std::unordered_map<int, double> verticesWeights : other.verticesWeightsMapping){
+            this->pushBackVerticesWeights(verticesWeights);
+        }
+    }
+
+    // Copy assignment operator
+    Graph& operator=(const Graph& other) {
+        if (this == &other) {
+            // Handle self-assignment
+            return *this;
+        }
+
+        this->clear();
+
+        vertices = other.vertices;
+        adjacencyList = other.adjacencyList;
+        edgeWeights = other.edgeWeights;
+
+        for(std::unordered_map<int, int> coarser_to_finer_mapping : other.coarserToFinerMappings){
+            this->pushBackMapping(coarser_to_finer_mapping);
+        }
+        for(std::unordered_map<std::pair<int, int>, double, HashPair> edgesMapping : other.edgesMappings){
+            this->pushBackMappingEdges(edgesMapping);
+        }
+        for(std::unordered_map<int, double> verticesWeights : other.verticesWeightsMapping){
+            this->pushBackVerticesWeights(verticesWeights);
+        }
+
+        return *this;
     }
 
     // Function to add a vertex to the graph with its weight
@@ -36,10 +72,36 @@ public:
         adjacencyList[vertexID] = std::vector<int>();
     }
 
+    void copyCoarseningData(Graph& other){
+        // Clear mappings and other data
+        coarserToFinerMappings.clear();
+        edgesMappings.clear();
+        verticesWeightsMapping.clear();
+
+        for(std::unordered_map<int, int> coarser_to_finer_mapping : other.coarserToFinerMappings){
+            this->pushBackMapping(coarser_to_finer_mapping);
+        }
+        for(std::unordered_map<std::pair<int, int>, double, HashPair> edgesMapping : other.edgesMappings){
+            this->pushBackMappingEdges(edgesMapping);
+        }
+        for(std::unordered_map<int, double> verticesWeights : other.verticesWeightsMapping){
+            this->pushBackVerticesWeights(verticesWeights);
+        }
+    }
+
     // Function to add an edge between two vertices with its weight
     void addEdge(int source, int destination, double weight) {
-        adjacencyList[source].push_back(destination);
-        adjacencyList[destination].push_back(source);
+        // Check if the destination is not already in the adjacency list of the source
+        if (std::find(adjacencyList[source].begin(), adjacencyList[source].end(), destination) == adjacencyList[source].end()) {
+            adjacencyList[source].push_back(destination);
+        }
+
+        // Check if the source is not already in the adjacency list of the destination
+        if (std::find(adjacencyList[destination].begin(), adjacencyList[destination].end(), source) == adjacencyList[destination].end()) {
+            adjacencyList[destination].push_back(source);
+        }
+
+        // Set the edge weight
         edgeWeights[{source, destination}] = weight;
         edgeWeights[{destination, source}] = weight;
     }
@@ -136,6 +198,31 @@ public:
             double value = entry.second;
             std::cout << "Edge: (" << key.first << ", " << key.second << "), Weight: " << value << std::endl;
         }
+
+        std::cout << "AdjacencyLists:" << std::endl;
+        for (const auto& entry : adjacencyList) {
+            int key = entry.first;
+            const std::vector<int>& neighbors = entry.second;
+
+            std::cout << "Vertex " << key << " neighbors: ";
+            for (int neighbor : neighbors) {
+                std::cout << neighbor << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
+
+    // Function to clear the graph and reset it to its initial state
+    void clear() {
+        // Clear the vertices, adjacency list, and edge weights
+        vertices.clear();
+        adjacencyList.clear();
+        edgeWeights.clear();
+
+        // Clear mappings and other data
+        coarserToFinerMappings.clear();
+        edgesMappings.clear();
+        verticesWeightsMapping.clear();
     }
 
 private:
