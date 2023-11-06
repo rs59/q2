@@ -149,12 +149,14 @@ void printGraphEdges(Graph& graph){
     }
 }
 
+/*
 int main() {
     //resources\metismodels\x200000y440000m20q20.metis
     const string filename = "resources/metismodels/x200000y440000m20q20.metis";
     const int numThreads = 7; // You can change the number of threadPool
     Graph graph = metisRead(filename, numThreads);
     /*printGraphVertexes(graph);
-    printGraphEdges(graph);*/
+    printGraphEdges(graph);
     return 0;
 }
+ */

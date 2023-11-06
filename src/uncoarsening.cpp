@@ -7,8 +7,8 @@
 #include <mutex>
 #include <condition_variable>
 
-int MAX_SWAPS_PER_LEVEL = 10;  //to be defined
-int current_ctr;
+int crrnt_ctr;
+int MAX_SWAPS_PER_ITERATION = 100;
 
 void UncoarseningGraph(Graph& uncoarsened_temp, std::unordered_map<int, int>& coarser_to_finer_mapping, std::unordered_map<std::pair<int, int>, double, HashPair>& edgesMapping, std::unordered_map<int, double>& verticesWeights, std::mutex& mutex, int start_mapping, int end_mapping, int start_edges, int end_edges, int numThreads, std::condition_variable& cv, std::mutex&barrierMutex){
     mutex.unlock();
@@ -31,14 +31,14 @@ void UncoarseningGraph(Graph& uncoarsened_temp, std::unordered_map<int, int>& co
 
     //barrier implementation with cv
     std::unique_lock<std::mutex> lock(barrierMutex);
-    current_ctr++;
-    if (current_ctr == numThreads) {
+    crrnt_ctr++;
+    if (crrnt_ctr == numThreads) {
         // All threads have arrived, notify all waiting threads
-        current_ctr = 0;
+        crrnt_ctr = 0;
         cv.notify_all();
     } else {
         // Not all threads have arrived, wait
-        cv.wait(lock, [] { return current_ctr == 0; });
+        cv.wait(lock, [] { return crrnt_ctr == 0; });
     }
 
     auto edgesIterator = edgesMapping.begin();
@@ -57,18 +57,25 @@ void UncoarseningGraph(Graph& uncoarsened_temp, std::unordered_map<int, int>& co
 }
 
 void UncoarsePartitions(std::unordered_map<int, int>& coarser_to_finer_mapping, std::vector<std::vector<int>>& partitions, std::vector<std::vector<int>>& uncoarsed_partitions, std::mutex& mutex, int start, int end) {
+    //std::cout << "Thread here" << std::endl;
     mutex.unlock();
 
     auto mappingIterator = coarser_to_finer_mapping.begin();
     std::advance(mappingIterator, start); // Move the iterator to the starting position
+    int originalVertex;
+    int coarserVertex;
     for (int i = start; i < end && mappingIterator != coarser_to_finer_mapping.end(); i++, mappingIterator++) {
-        int originalVertex = mappingIterator -> first;
-        int coarserVertex = mappingIterator -> second;
+        originalVertex = mappingIterator -> first;
+        coarserVertex = mappingIterator -> second;
+
+        //std::cout << "[" << originalVertex << "," << coarserVertex << "]" << std::endl;
 
         for(int i = 0; i < partitions.size(); i++){
             for(int j = 0; j < partitions[i].size(); j++){
                 if(partitions[i][j] == coarserVertex){
+                    mutex.lock();
                     uncoarsed_partitions[i].emplace_back(originalVertex);
+                    mutex.unlock();
                 }
             }
         }
@@ -76,6 +83,7 @@ void UncoarsePartitions(std::unordered_map<int, int>& coarser_to_finer_mapping, 
 }
 
 void uncoarseBoundaries(Graph& graph, std::vector<int>& boundaryVertices, std::vector<std::vector<int>>& partitions,  std::mutex& mutex, int start, int end){
+    //std::cout << "Thread[" << start << "," << end << "] started" << std::endl;
     mutex.unlock();
 
     std::unordered_map<int, double> vertices = graph.getVertices();
@@ -122,7 +130,9 @@ void uncoarseBoundaries(Graph& graph, std::vector<int>& boundaryVertices, std::v
 
         // If the vertex is a boundary vertex, add it to the list
         if (isBoundary) {
+            mutex.lock();
             boundaryVertices.push_back(vertexID);
+            mutex.unlock();
         }
     }
 }
@@ -168,7 +178,9 @@ void refinementStep(Graph& graph, std::vector<std::pair<int, double>>& vertexGai
                 initialGain += weight;
             }
         }
+        mutex.lock();
         vertexGains.emplace_back(vertexID, initialGain);
+        mutex.unlock();
     }
 
 }
@@ -249,6 +261,8 @@ void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, 
 }
 
 std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector<int>>& partitions, std::vector<int>& boundaryVertices, int numThreads, float maxDeviation){
+
+    std::cout << "Uncoarsening entered" << std::endl;
     int num_levels = graph.getCoarsingLevel();
 
     std::unordered_map<int, int> coarser_to_finer_mapping;
@@ -282,6 +296,7 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
     std::vector<std::pair<int, double>> vertexGains;
 
     for (int level = num_levels - 1; level >= 0; level--) {
+        std::cout << "Uncoarsening a new level" << std::endl;
         // Create a single mutex for synchronization
         std::mutex mutex;
 
@@ -291,6 +306,7 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         verticesWeights = graph.getMappingVerticesWeights(level);
 
         //Graph uncoarsening
+        std::cout << "Graph uncoarsening" << std::endl;
 
         // Divide the work among three threads
         int mappingPerThread = coarser_to_finer_mapping.size() / numThreads;
@@ -298,7 +314,7 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
 
         //Create a barrier mutex
         std::mutex barrierMutex;
-        current_ctr = 0;  //reset barrier ctr
+        crrnt_ctr = 0;  //reset barrier ctr
         std::condition_variable cv;
 
         // Create and join threads in a loop
@@ -328,8 +344,10 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         uncoarsened_temp.copyCoarseningData(graph);
         graph = uncoarsened_temp;
         uncoarsened_temp.clear();
+        std::cout << "Graph uncoarsening finished" << std::endl;
 
         //Uncoarse partitions
+        std::cout << "Partition uncoarsening started" << std::endl;
         uncoarsed_partitions = std::vector<std::vector<int>>(partitions.size());
 
         // Divide the work among three threads
@@ -356,12 +374,16 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         partitions = uncoarsed_partitions;
         uncoarsed_partitions.clear();
         threads.clear();
+        std::cout << "Uncoarse prtition finished" << std::endl;
 
         //If necessary, balance partitions
+        std::cout << "Balance partitions" << std::endl;
         balancePartitions(graph, partitions, partition_weights, maxDeviation, target_weight);
+        std::cout << "Balance partitions ended" << std::endl;
 
         //Uncoarse boundary vertices
 
+        std::cout << "Uncoarse boundary vertices started" << std::endl;
         // Divide the work among three threads
         int verticesPerThread = graph.getVertices().size() / numThreads;
 
@@ -387,8 +409,11 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         uncoarsedBoundaries.clear();
         threads.clear();
 
+        std::cout << "Uncoarse boundary vertices finished" << std::endl;
+
         //Refinement step
 
+        std::cout << "Refinement step started" << std::endl;
         // Divide the work among three threads
         int vertexPerThread = boundaryVertices.size() / numThreads;
 
@@ -414,6 +439,8 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         uncoarsedBoundaries.clear();
         threads.clear();
 
+        std::cout << "Vertex gain calculated" << std::endl;
+
         // Sort in descending order by gain vertexGain
         std::sort(vertexGains.begin(), vertexGains.end(), [](const auto& a, const auto& b) {
             return a.second > b.second;
@@ -421,9 +448,15 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
 
         std::vector<double> bestPartition;
 
+        int swaps = 0;
+
+        std::cout << "Start swapping" << std::endl;
+
         // Access pairs sequentially while gain > 0
         for (const auto& pair : vertexGains) {
-            if (pair.second <= 0.0) {
+            swaps++;
+            if (pair.second <= 0.0 || swaps > 100) {
+                std::cout << "Swapped " << swaps << " nodes" << std::endl;
                 break; // Stop when gain is not positive
             }
 
@@ -494,6 +527,7 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         }
 
         vertexGains.clear();
+        std::cout << "Refinement step and cycle ended" << std::endl;
     }
 
     return partitions;

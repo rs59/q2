@@ -2,22 +2,16 @@
 #include "graph.h"
 #include <vector>
 #include <algorithm>
-#include <string>
-#include <unordered_set>
+#include <chrono>
 #include <thread>
-#include <mutex>
-#include <cmath>
 #include "coarsening.cpp"
 #include "uncoarsening.cpp"
+#include "Reader.cpp"
 
 using namespace std;
 
 //To be defined in LoadGraphFromMemory
 Graph graph;
-
-void LoadGraphFromMemory(string inputfile){
-    //TO-DO
-}
 
 double getCutSize(Graph& graph, std::vector<std::vector<int>>& partitions){
     std::unordered_map<std::pair<int, int>, double, HashPair> edgeWeights = graph.getEdgeWeights();
@@ -117,7 +111,8 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
                     continue;
                 }
 
-                if(partitions[partitionOrder[i]].empty()){
+                //If the partition is empty or if the node is completely disconnected, assign it
+                if(partitions[partitionOrder[i]].empty() || coarsedGraph.getNeighbors(vertex).size() == 0){
                     connected = true;
                     min_weight_partition = partitionOrder[i];
                     break;
@@ -150,6 +145,8 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
             condition = false;
         }
     }
+
+    std::cout << "Start refining initial partitioning" << std::endl;
 
     int iterations = 0;
     //Perform movements until is balanced, or until it iterates one time for vertex
@@ -226,6 +223,8 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
         iterations++;
     }
 
+    std::cout << "It iterates " << iterations << " times to balance initial partitions" << std::endl;
+
     return partitions;
 }
 
@@ -287,7 +286,7 @@ void WriteOutputToFile(const std::vector<std::vector<int>>& partitions, string o
         std::cout << "Partition " << partitionIndex << ": ";
         int sum = 0;
         for (const auto& vertex : partition) {
-            std::cout << vertex << " ";
+            //std::cout << vertex << " ";
             sum += graph.getVertexWeight(vertex);
         }
         std::cout << std::endl;
@@ -299,102 +298,44 @@ void WriteOutputToFile(const std::vector<std::vector<int>>& partitions, string o
 
 
 void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, string inputfile, string outputfile){
-    LoadGraphFromMemory(inputfile);      //load the graph from file
-
-    std::cout << "Print initial graph" << std::endl;
-    graph.print();
-
+    graph = metisRead(inputfile, nthreads);      //load the graph from file
+    //graph.print();
+    std::cout << std::endl << std::endl << "COARSENING" << std::endl;
     Graph coarsedGraph = Coarsening(graph, nthreads);        //Coarse the initial graph
-
+    std::cout << std::endl << "INITIAL PARTITIONING" << std::endl;
     std::vector<std::vector<int>> initial_partitions = InitialPartitioning(coarsedGraph, npartitions, maxdeviation);
-
+    std::cout << std::endl << "BOUNDARY VERTICES" << std::endl;
     std::vector<int> boundaryVertices = findBoudaryVertices(coarsedGraph, initial_partitions);
-
+    std::cout << std::endl << "UNCOARSENING" << std::endl;
     std::vector<std::vector<int>> uncoarsened_partitions = Uncoarsening(coarsedGraph, initial_partitions, boundaryVertices, nthreads, maxdeviation);
-
     WriteOutputToFile(uncoarsened_partitions, outputfile);
 }
 
 
 int main() {
-    // Add vertices and edges to the global graph instance
-    graph.addVertex(0, 1.0);
-    graph.addVertex(1, 1.0);
-    graph.addVertex(2, 1.0);
-    graph.addVertex(3, 1.0);
-    graph.addVertex(4, 1.0);
-    graph.addVertex(5, 1.0);
-    graph.addVertex(6, 1.0);
-    graph.addVertex(7, 1.0);
-    graph.addVertex(8, 1.0);
-    graph.addVertex(9, 1.0);
-    graph.addVertex(10, 1.0);
-    graph.addVertex(11, 1.0);
-    graph.addVertex(12, 1.0);
-    graph.addVertex(13, 1.0);
-    graph.addVertex(14, 1.0);
+    // Start the clock
+    auto start_time = std::chrono::high_resolution_clock::now();
 
-    /*
-    // Add edges with weight 1 between all pairs of nodes
-    for (int i = 0; i < 15; ++i) {
-        for (int j = i + 1; j < 15; ++j) {
-            graph.addEdge(i, j, 1);
-        }
-    }
-     */
-
-    //Circular graph
-    /*graph.addEdge(0, 1, 0.7);
-    graph.addEdge(1, 2, 0.7);
-    graph.addEdge(2, 3, 0.7);
-    graph.addEdge(3, 4, 0.7);
-    graph.addEdge(4, 5, 0.7);
-    graph.addEdge(5, 6, 0.7);
-    graph.addEdge(6, 7, 0.7);
-    graph.addEdge(7, 8, 0.7);
-    graph.addEdge(8, 9, 0.7);
-    graph.addEdge(9, 10, 0.7);
-    graph.addEdge(10, 11, 0.7);
-    graph.addEdge(11, 12, 0.7);
-    graph.addEdge(12, 13, 0.7);
-    graph.addEdge(13, 14, 0.7);
-    graph.addEdge(14, 0, 0.7);*/
-
-
-    graph.addEdge(0, 1, 0.7);
-    graph.addEdge(0, 2, 0.3);
-    graph.addEdge(0, 3, 0.5);
-    graph.addEdge(0,14,0.3);
-    graph.addEdge(1, 2, 0.9);
-    graph.addEdge(1, 4, 0.2);
-    graph.addEdge(2, 3, 0.4);
-    graph.addEdge(2, 5, 0.8);
-    graph.addEdge(3, 6, 0.6);
-    graph.addEdge(4, 5, 0.1);
-    graph.addEdge(4, 7, 0.4);
-    graph.addEdge(5, 6, 0.7);
-    graph.addEdge(5, 8, 0.3);
-    graph.addEdge(6, 9, 0.9);
-    graph.addEdge(7, 8, 0.5);
-    graph.addEdge(8, 9, 0.2);
-    graph.addEdge(8, 10, 0.6);
-    graph.addEdge(9, 11, 0.4);
-    graph.addEdge(10, 11, 0.8);
-    graph.addEdge(10, 12, 0.7);
-    graph.addEdge(11, 13, 0.3);
-    graph.addEdge(11, 14, 0.9);
-    graph.addEdge(12, 13, 0.1);
-    graph.addEdge(13, 14, 0.5);
-
-    // Set the number of threads and partitions
-    int nthreads = 3; // Change this to the desired number of threads
+    //resources\metismodels\x200000y440000m20q20.metis
+    const string inputfile = "resources/metismodels/x200000y440000m20q20.metis";
+    int nthreads = 10; // Change this to the desired number of threads
     int npartitions = 3; // Change this to the desired number of partitions
     float maxdeviation = 1.05; // Change this to the desired max deviation
-    std::string inputfile = "input_graph.txt"; // Change this to the input file name
+
     std::string outputfile = "output_partition.txt"; // Change this to the output file name
 
     // Call the algorithm function
     MultithreadedMETIS(nthreads, npartitions, maxdeviation, inputfile, outputfile);
+
+    // Stop the clock
+    auto end_time = std::chrono::high_resolution_clock::now();
+    // Calculate the duration
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    // Convert the duration to a double value in seconds
+    double seconds = duration.count() / 1e6;
+    // Print the execution time
+    std::cout << "Execution time: " << seconds << " seconds" << std::endl;
+
 
     return 0;
 }
