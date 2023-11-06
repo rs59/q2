@@ -298,17 +298,47 @@ void WriteOutputToFile(const std::vector<std::vector<int>>& partitions, string o
 
 
 void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, string inputfile, string outputfile){
+    auto start_time = std::chrono::high_resolution_clock::now();
     graph = metisRead(inputfile, nthreads);      //load the graph from file
+    // Stop the clock
+    auto end_time = std::chrono::high_resolution_clock::now();
+    // Calculate the duration
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    // Convert the duration to a double value in seconds
+    double seconds = duration.count() / 1e6;
+    // Print the execution time
+    std::cout << "Reading time: " << seconds << " seconds" << std::endl;
     //graph.print();
+    start_time = std::chrono::high_resolution_clock::now();
     std::cout << std::endl << std::endl << "COARSENING" << std::endl;
     Graph coarsedGraph = Coarsening(graph, nthreads);        //Coarse the initial graph
+    end_time = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    seconds = duration.count() / 1e6;
+    std::cout << "Coarsening time: " << seconds << " seconds" << std::endl;
+    start_time = std::chrono::high_resolution_clock::now();
     std::cout << std::endl << "INITIAL PARTITIONING" << std::endl;
     std::vector<std::vector<int>> initial_partitions = InitialPartitioning(coarsedGraph, npartitions, maxdeviation);
+    end_time = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    seconds = duration.count() / 1e6;
+    std::cout << "Initial partitioning time: " << seconds << " seconds" << std::endl;
+    start_time = std::chrono::high_resolution_clock::now();
     std::cout << std::endl << "BOUNDARY VERTICES" << std::endl;
     std::vector<int> boundaryVertices = findBoudaryVertices(coarsedGraph, initial_partitions);
+    end_time = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    seconds = duration.count() / 1e6;
+    std::cout << "Boundary vertices time: " << seconds << " seconds" << std::endl;
+    start_time = std::chrono::high_resolution_clock::now();
     std::cout << std::endl << "UNCOARSENING" << std::endl;
     std::vector<std::vector<int>> uncoarsened_partitions = Uncoarsening(coarsedGraph, initial_partitions, boundaryVertices, nthreads, maxdeviation);
+    end_time = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    seconds = duration.count() / 1e6;
+    std::cout << "Uncoarsening time: " << seconds << " seconds" << std::endl;
     WriteOutputToFile(uncoarsened_partitions, outputfile);
+    std::cout << "Cut size: " << getCutSize(graph, uncoarsened_partitions) << std::endl;
 }
 
 

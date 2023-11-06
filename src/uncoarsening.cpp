@@ -8,7 +8,7 @@
 #include <condition_variable>
 
 int crrnt_ctr;
-int MAX_SWAPS_PER_ITERATION = 100;
+int MAX_SWAPS_PER_ITERATION = 1000;
 
 void UncoarseningGraph(Graph& uncoarsened_temp, std::unordered_map<int, int>& coarser_to_finer_mapping, std::unordered_map<std::pair<int, int>, double, HashPair>& edgesMapping, std::unordered_map<int, double>& verticesWeights, std::mutex& mutex, int start_mapping, int end_mapping, int start_edges, int end_edges, int numThreads, std::condition_variable& cv, std::mutex&barrierMutex){
     mutex.unlock();
@@ -82,26 +82,31 @@ void UncoarsePartitions(std::unordered_map<int, int>& coarser_to_finer_mapping, 
     }
 }
 
-void uncoarseBoundaries(Graph& graph, std::vector<int>& boundaryVertices, std::vector<std::vector<int>>& partitions,  std::mutex& mutex, int start, int end){
+void uncoarseBoundaries(Graph& graph, std::unordered_map<int, int>& coarser_to_finer_mapping, std::vector<int>& boundaryVertices, std::vector<int>& uncoarsedBoundaryVertices, std::vector<std::vector<int>>& partitions,  std::mutex& mutex, int start, int end){
     //std::cout << "Thread[" << start << "," << end << "] started" << std::endl;
     mutex.unlock();
 
-    std::unordered_map<int, double> vertices = graph.getVertices();
-    std::unordered_map<std::pair<int, int>, double, HashPair> edgeWeights = graph.getEdgeWeights();
+    auto mappingIterator = coarser_to_finer_mapping.begin();
+    std::advance(mappingIterator, start); // Move the iterator to the starting position
+    int originalVertex;
+    int coarserVertex;
+    for (int i = start; i < end && mappingIterator != coarser_to_finer_mapping.end(); i++, mappingIterator++) {
+        originalVertex = mappingIterator -> first;
+        coarserVertex = mappingIterator -> second;
 
-    // Iterate through each vertex from start to end
-    auto vertexIterator = vertices.begin();
-    std::advance(vertexIterator, start); // Move the iterator to the starting position
-    for (int i = start; i < end && vertexIterator != vertices.end(); i++, vertexIterator++) {
-        int vertexID = vertexIterator->first;
-        const std::vector<int>& neighbors = graph.getNeighbors(vertexID);
+        if(std::find(boundaryVertices.begin(), boundaryVertices.end(), coarserVertex) == boundaryVertices.end()){
+            //The coarsed vertex is not boundary, so none of the original ones will be
+            continue;
+        }
+
+        std::vector<int> neigbhors = graph.getNeighbors(originalVertex);
 
         // Get the partition of the current vertex
         int partitionVertex = -1; // Initialize to an invalid partition
 
         // Find the partition that contains the current vertex
         for (int i = 0; i < partitions.size(); ++i) {
-            if (std::find(partitions[i].begin(), partitions[i].end(), vertexID) != partitions[i].end()) {
+            if (std::find(partitions[i].begin(), partitions[i].end(), originalVertex) != partitions[i].end()) {
                 partitionVertex = i;
                 break;
             }
@@ -111,7 +116,7 @@ void uncoarseBoundaries(Graph& graph, std::vector<int>& boundaryVertices, std::v
         bool isBoundary = false;
 
         // Iterate through the neighbors of the current vertex
-        for (int neighbor : neighbors) {
+        for (int neighbor : neigbhors) {
             // Find the partition that contains the neighbor
             int partitionNeighbor = -1; // Initialize to an invalid partition
             for (int i = 0; i < partitions.size(); ++i) {
@@ -131,7 +136,7 @@ void uncoarseBoundaries(Graph& graph, std::vector<int>& boundaryVertices, std::v
         // If the vertex is a boundary vertex, add it to the list
         if (isBoundary) {
             mutex.lock();
-            boundaryVertices.push_back(vertexID);
+            uncoarsedBoundaryVertices.push_back(originalVertex);
             mutex.unlock();
         }
     }
@@ -185,10 +190,65 @@ void refinementStep(Graph& graph, std::vector<std::pair<int, double>>& vertexGai
 
 }
 
-void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, std::vector<double>& partition_weights, float maxDeviation, double target_weight){
+void updateBoundaryVertices(Graph& graph, std::vector<int>& boundaryVertices, std::vector<std::vector<int>>& initial_partitions, int node){
+     std::vector<int> neighbors = graph.getNeighbors(node);
+
+     std::vector<int> neighborNeigbhors;
+     for(int vertex : neighbors){
+         neighborNeigbhors = graph.getNeighbors(vertex);
+
+         // Get the partition of the current vertex
+         int partitionVertex = -1; // Initialize to an invalid partition
+
+         // Find the partition that contains the current vertex
+         for (int i = 0; i < initial_partitions.size(); ++i) {
+             if (std::find(initial_partitions[i].begin(), initial_partitions[i].end(), vertex) != initial_partitions[i].end()) {
+                 partitionVertex = i;
+                 break;
+             }
+         }
+
+         // Initialize a flag to check if the vertex is a boundary vertex
+         bool isBoundary = false;
+
+         // Iterate through the neighbors of the current vertex
+         for (int neighbor : neighborNeigbhors) {
+             // Find the partition that contains the neighbor
+             int partitionNeighbor = -1; // Initialize to an invalid partition
+             for (int i = 0; i < initial_partitions.size(); ++i) {
+                 if (std::find(initial_partitions[i].begin(), initial_partitions[i].end(), neighbor) != initial_partitions[i].end()) {
+                     partitionNeighbor = i;
+                     break;
+                 }
+             }
+
+             // Check if the neighbor is in a different partition
+             if (partitionVertex != partitionNeighbor) {
+                 isBoundary = true;
+                 break;  // No need to check further if it's already a boundary vertex
+             }
+         }
+
+         bool wasBoundary = std::find(boundaryVertices.begin(), boundaryVertices.end(), vertex) != boundaryVertices.end();
+
+         // If the vertex is a boundary vertex, add it to the list
+         if (isBoundary) {
+             if(!wasBoundary){
+                 boundaryVertices.push_back(vertex);
+             }
+         }else{
+            if(wasBoundary){
+                boundaryVertices.erase(std::remove(boundaryVertices.begin(), boundaryVertices.end(), vertex), boundaryVertices.end());
+            }
+         }
+     }
+
+}
+
+void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, std::vector<double>& partition_weights, std::vector<int>& boundaryVertices, std::vector<std::vector<int>> initial_partitions, float maxDeviation, double target_weight){
     int iterations = 0;
     //Perform movements until is balanced, or until it iterates one time for vertex
-    while(true && iterations < 100){
+    while(iterations < MAX_SWAPS_PER_ITERATION){
         bool balanced = true;
         for(double pw : partition_weights){
             if(pw > maxDeviation*target_weight || pw < (1 - (maxDeviation - 1))*target_weight){
@@ -225,6 +285,7 @@ void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, 
                 partition_weights[partitionOrder[i]] -= graph.getVertexWeight(node);
                 partition_weights[partitionOrder[0]] += graph.getVertexWeight(node);
                 swapped = true;
+                updateBoundaryVertices(graph, boundaryVertices, initial_partitions, node);
                 break;
             }
 
@@ -241,6 +302,7 @@ void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, 
                             partition_weights[partitionOrder[i]] -= graph.getVertexWeight(neighbor);
                             partition_weights[partitionOrder[0]] += graph.getVertexWeight(neighbor);
                             swapped = true;
+                            updateBoundaryVertices(graph, boundaryVertices, initial_partitions, neighbor);
                             break;
                         }
                     }
@@ -376,16 +438,14 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         threads.clear();
         std::cout << "Uncoarse prtition finished" << std::endl;
 
-        //If necessary, balance partitions
-        std::cout << "Balance partitions" << std::endl;
-        balancePartitions(graph, partitions, partition_weights, maxDeviation, target_weight);
-        std::cout << "Balance partitions ended" << std::endl;
-
         //Uncoarse boundary vertices
 
         std::cout << "Uncoarse boundary vertices started" << std::endl;
+        //initialize uncoarsed boundary vertices
+        uncoarsedBoundaries.clear();
+
         // Divide the work among three threads
-        int verticesPerThread = graph.getVertices().size() / numThreads;
+        int verticesPerThread = boundaryVertices.size() / numThreads;
 
         // Create and join threads in a loop
         for (int i = 0; i < numThreads; i++) {
@@ -398,7 +458,7 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
             }
 
             threads.emplace_back([&] {
-                uncoarseBoundaries(graph, uncoarsedBoundaries, partitions, std::ref(mutex), start, end);
+                uncoarseBoundaries(graph, coarser_to_finer_mapping, boundaryVertices, uncoarsedBoundaries, partitions, std::ref(mutex), start, end);
             });
         }
         // Wait for all threads to finish
@@ -411,8 +471,12 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
 
         std::cout << "Uncoarse boundary vertices finished" << std::endl;
 
-        //Refinement step
+        //If necessary, balance partitions
+        std::cout << "Balance partitions" << std::endl;
+        balancePartitions(graph, partitions, partition_weights, boundaryVertices, partitions, maxDeviation, target_weight);
+        std::cout << "Balance partitions ended" << std::endl;
 
+        //Refinement step
         std::cout << "Refinement step started" << std::endl;
         // Divide the work among three threads
         int vertexPerThread = boundaryVertices.size() / numThreads;
@@ -455,8 +519,7 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         // Access pairs sequentially while gain > 0
         for (const auto& pair : vertexGains) {
             swaps++;
-            if (pair.second <= 0.0 || swaps > 100) {
-                std::cout << "Swapped " << swaps << " nodes" << std::endl;
+            if (pair.second <= 0.0 || swaps > MAX_SWAPS_PER_ITERATION) {
                 break; // Stop when gain is not positive
             }
 
@@ -521,6 +584,7 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
                     partitions[partitionOrder[i]].push_back(vertexID);
                     partition_weights[partitionVertex] -= graph.getVertexWeight(vertexID);
                     partition_weights[partitionOrder[i]] += graph.getVertexWeight(vertexID);
+                    updateBoundaryVertices(graph, boundaryVertices, partitions, vertexID);
                     break;
                 }
             }
