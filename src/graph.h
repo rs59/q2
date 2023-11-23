@@ -5,6 +5,7 @@
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
+#define INF_EDGE_WEIGHT 2000000000.0
 
 // Hash function for pairs (used for edgeWeights unordered_map)
     struct HashPair {
@@ -67,7 +68,7 @@ public:
     }
 
     // Function to add a vertex to the graph with its weight
-    void addVertex(int vertexID, double weight) {
+    void addVertex(int vertexID, double weight = 1) {
         vertices[vertexID] = weight;
         adjacencyList[vertexID] = std::vector<int>();
     }
@@ -116,6 +117,15 @@ public:
         return edgeWeights[{source, destination}];
     }
 
+        // Function to get the weight of an edge
+    double getEdgeWeightKL(const int& source, const int& destination) const {
+        auto it = edgeWeights.find({source, destination});
+        if(it != edgeWeights.end()){
+            return it->second;
+        }
+        return 0;
+    }
+
     // Function to check if a vertex exists in the graph
     bool containsVertex(int vertexID) {
         return vertices.find(vertexID) != vertices.end();
@@ -129,6 +139,16 @@ public:
     // Function to get the neighbors of a vertex
     std::vector<int>& getNeighbors(int vertexID) {
         return adjacencyList[vertexID];
+    }
+    // Function to get the neighbors of a vertex
+    std::vector<int> getNeighborsKL(const int& vertexID) const{
+        const auto it = adjacencyList.find(vertexID);
+        if(it != adjacencyList.end()){
+            const auto value = it->second;
+            return value;
+        }
+        return {};
+
     }
 
     // Function to get the number of vertices in the graph
@@ -224,6 +244,57 @@ public:
         edgesMappings.clear();
         verticesWeightsMapping.clear();
     }
+
+    std::vector<int> inflateVertex(const int& vertexID, int& offset) {
+        if(vertexID < 0) return std::vector<int>({vertexID});
+        std::vector<int> inflation;
+        auto vertex_it = vertices.find(vertexID);
+        if(vertex_it == vertices.end()) exit(1);
+        int weight = static_cast<int>(vertex_it->second);
+        inflation.push_back(vertex_it->first);
+        for(int i = 0; i < weight-1; i++){
+            int new_id = -(offset+1);
+            offset++;
+            inflation.push_back(new_id);
+            addVertex(new_id);
+        }
+        for(auto source: inflation){
+            for(auto destination: inflation){
+                if(destination != source){
+                    edgeWeights[{source, destination}] = INF_EDGE_WEIGHT;
+                    adjacencyList[source].push_back(destination);
+                }
+            }
+        }
+        return inflation;
+    }
+    void deflate(){
+        for(auto it = vertices.begin(); it != vertices.end();){
+            if(it->first < 0){
+                it = vertices.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        for(auto it = adjacencyList.begin(); it != adjacencyList.end();){
+            if(it->first < 0){
+                it = adjacencyList.erase(it);
+            } else {
+                if(it->second.size()){
+                    it->second.erase(std::remove_if(it->second.begin(), it->second.end(), [](int n) { return n < 0; }), it->second.end());
+                }
+                ++it;
+            }
+        }
+        for(auto it = edgeWeights.begin(); it != edgeWeights.end();){
+            if(it->second < 0){
+                it = edgeWeights.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
 
 private:
     // Data structures to store the graph data
