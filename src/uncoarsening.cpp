@@ -8,7 +8,7 @@
 #include <condition_variable>
 
 int crrnt_ctr;
-int MAX_SWAPS_PER_ITERATION = 1000;
+int MAX_SWAPS_PER_ITERATION = 10000;
 
 void UncoarseningGraph(Graph& uncoarsened_temp, std::unordered_map<int, int>& coarser_to_finer_mapping, std::unordered_map<std::pair<int, int>, double, HashPair>& edgesMapping, std::unordered_map<int, double>& verticesWeights, std::mutex& mutex, int start_mapping, int end_mapping, int start_edges, int end_edges, int numThreads, std::condition_variable& cv, std::mutex&barrierMutex){
     mutex.unlock();

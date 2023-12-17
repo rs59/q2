@@ -338,7 +338,7 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     seconds = duration.count() / 1e6;
     std::cout << "Uncoarsening time: " << seconds << " seconds" << std::endl;
     WriteOutputToFile(uncoarsened_partitions, outputfile);
-    std::cout << "Cut size: " << getCutSize(graph, uncoarsened_partitions) << std::endl;
+    //std::cout << "Cut size: " << getCutSize(graph, uncoarsened_partitions) << std::endl;
 }
 
 
@@ -348,8 +348,8 @@ int main() {
 
     //resources\metismodels\x200000y440000m20q20.metis
     const string inputfile = "resources/metismodels/x200000y440000m20q20.metis";
-    int nthreads = 10; // Change this to the desired number of threads
-    int npartitions = 3; // Change this to the desired number of partitions
+    int nthreads = 20; // Change this to the desired number of threads
+    int npartitions = 10; // Change this to the desired number of partitions
     float maxdeviation = 1.05; // Change this to the desired max deviation
 
     std::string outputfile = "output_partition.txt"; // Change this to the output file name

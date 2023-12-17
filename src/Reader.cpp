@@ -9,7 +9,7 @@
 
 int current_count;
 
-std::ifstream& GotoLine(std::ifstream& file, unsigned int num){
+std::ifstream& gotoLine(std::ifstream& file, unsigned int num){
     file.seekg(std::ios::beg);
     for(int i=0; i < num; ++i){
         file.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
@@ -25,6 +25,7 @@ void vertexRead(std::ifstream& file, Graph& graph, const unsigned int& nodeId, c
             std::stringstream sLine(line);
             if(sLine >> nodeWeight){
                 std::unique_lock<std::mutex> lock(mtx);
+                //std::cout << nodeId + i << ": " << nodeWeight << std::endl;
                 graph.addVertex(nodeId+i, static_cast<double>(nodeWeight));
                 lock.unlock();
             } else {
@@ -52,13 +53,13 @@ void edgeRead(std::ifstream& file, Graph& graph, const unsigned int& nodeId, con
 }
 
 
-void readFromFile(const std::string& filename, Graph& graph, const int& numThreads, const unsigned int& startNodeId, const unsigned int& nodeToRead,  std::mutex& mtx, std::mutex& barMtx, std::condition_variable& cv, std::mutex& creationMtx) {
+void readFromFile(const std::string& filename, Graph& graph, const int& numThreads, const unsigned int& startNodeId, const unsigned int& nodeToRead,  std::mutex& mtx, std::mutex& barMtx, std::condition_variable& cv, std::mutex& creation_mtx) {
 
-    creationMtx.unlock();
+    creation_mtx.unlock();
     std::ifstream file(filename);
     if (file.is_open()) {
         
-        GotoLine(file, startNodeId);
+        gotoLine(file, startNodeId);
         vertexRead(file, graph, startNodeId, nodeToRead, mtx);
 
         // barrier implementation with cv
@@ -77,7 +78,7 @@ void readFromFile(const std::string& filename, Graph& graph, const int& numThrea
                         { return current_count == 0; });
         }
 
-        GotoLine(file, startNodeId);
+        gotoLine(file, startNodeId);
         edgeRead(file, graph, startNodeId, nodeToRead, mtx);
         file.close();
     } else {
@@ -98,7 +99,7 @@ Graph metisRead(const std::string& filename, const int& numThreads){
 
     std::vector<std::thread> threadPool;
 
-    std::mutex mtx, creationMtx;
+    std::mutex mtx, creation_mtx;
 
     std::condition_variable cv;
     std::mutex barMtx;
@@ -113,15 +114,17 @@ Graph metisRead(const std::string& filename, const int& numThreads){
     file.close();
     std::stringstream sLine(line);
     sLine >> numLines;
-    int linesPerThread = (numThreads>1) ? numLines/(numThreads-1) : numLines;
+    int linesPerThread = (numThreads>1) ? numLines/(numThreads-1)  : numLines;
     //std::cout << "Number of Lines: " << numLines << std::endl;
     //std::cout << "Number of Lines per Thread: " << linesPerThread << std::endl;
     for (int i = 0; i < numThreads; ++i) {
-        creationMtx.lock();
+        creation_mtx.lock();
         int firstNodeId = linesPerThread*i + 1;
-        //std::cout << "First line for thread: "<< i+1 << ": " << firstNodeId << std::endl;
+        if(i == numThreads -1)
+            linesPerThread = numLines%(numThreads-1);
+        //std::cout << "Line for thread: "<< i+1 << ": " << firstNodeId << " to " << firstNodeId + linesPerThread -1  << std::endl;
         threadPool.emplace_back([&] {
-            readFromFile(filename, graph, numThreads, firstNodeId, linesPerThread, std::ref(mtx), std::ref(barMtx), std::ref(cv), std::ref(creationMtx));
+            readFromFile(filename, graph, numThreads, firstNodeId, linesPerThread, std::ref(mtx), std::ref(barMtx), std::ref(cv), std::ref(creation_mtx));
             });
     }
 
@@ -152,11 +155,9 @@ void printGraphEdges(Graph& graph){
 /*
 int main() {
     //resources\metismodels\x200000y440000m20q20.metis
-    const string filename = "resources/metismodels/x200000y440000m20q20.metis";
+    const string filename = "resources/metismodels/x15y30m20q20.metis";
     const int numThreads = 7; // You can change the number of threadPool
     Graph graph = metisRead(filename, numThreads);
-    /*printGraphVertexes(graph);
-    printGraphEdges(graph);
+    //graph.print();
     return 0;
-}
- */
+}*/

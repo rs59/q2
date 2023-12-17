@@ -1,7 +1,7 @@
 #ifndef GRAPH_H
 #define GRAPH_H
 
-#include <iostream>
+#include <ostream>
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
@@ -68,7 +68,7 @@ public:
     }
 
     // Function to add a vertex to the graph with its weight
-    void addVertex(int vertexID, double weight = 1) {
+    void addVertex(const int& vertexID,const double& weight = 1.0) {
         vertices[vertexID] = weight;
         adjacencyList[vertexID] = std::vector<int>();
     }
@@ -91,7 +91,7 @@ public:
     }
 
     // Function to add an edge between two vertices with its weight
-    void addEdge(int source, int destination, double weight) {
+    void addEdge(const int& source,const int& destination,const double& weight) {
         // Check if the destination is not already in the adjacency list of the source
         if (std::find(adjacencyList[source].begin(), adjacencyList[source].end(), destination) == adjacencyList[source].end()) {
             adjacencyList[source].push_back(destination);
@@ -108,40 +108,33 @@ public:
     }
 
     // Function to get the weight of a vertex
-    double getVertexWeight(int vertexID) {
-        return vertices[vertexID];
+    double getVertexWeight(const int& vertexID) const{
+        auto vertex_it = vertices.find(vertexID);
+        if(vertex_it == vertices.end()) 
+            return 0;
+        return vertex_it->second;
     }
 
     // Function to get the weight of an edge
-    double getEdgeWeight(int source, int destination) {
-        return edgeWeights[{source, destination}];
-    }
-
-        // Function to get the weight of an edge
-    double getEdgeWeightKL(const int& source, const int& destination) const {
-        auto it = edgeWeights.find({source, destination});
-        if(it != edgeWeights.end()){
-            return it->second;
-        }
-        return 0;
+    double getEdgeWeight(const int& source,const int& destination) const{
+        auto edge_it = edgeWeights.find({source, destination});
+        if(edge_it == edgeWeights.end())
+            return 0;
+        return edge_it->second;
     }
 
     // Function to check if a vertex exists in the graph
-    bool containsVertex(int vertexID) {
+    bool containsVertex(const int& vertexID) const{
         return vertices.find(vertexID) != vertices.end();
     }
 
     // Function to check if an edge exists in the graph
-    bool containsEdge(int source, int destination) {
+    bool containsEdge(const int& source, const int destination) const{
         return edgeWeights.find({source, destination}) != edgeWeights.end();
     }
 
     // Function to get the neighbors of a vertex
-    std::vector<int>& getNeighbors(int vertexID) {
-        return adjacencyList[vertexID];
-    }
-    // Function to get the neighbors of a vertex
-    std::vector<int> getNeighborsKL(const int& vertexID) const{
+    std::vector<int> getNeighbors(const int& vertexID) const{
         const auto it = adjacencyList.find(vertexID);
         if(it != adjacencyList.end()){
             const auto value = it->second;
@@ -171,65 +164,65 @@ public:
     }
 
     //Function to get the edges list and weights
-    std::unordered_map<std::pair<int, int>, double, HashPair> getEdgeWeights(){
+    std::unordered_map<std::pair<int, int>, double, HashPair> getEdgeWeights() const{
         return edgeWeights;
     }
 
 
-    int getCoarsingLevel(){
+    int getCoarsingLevel() const{
         return coarserToFinerMappings.size();
     }
 
-    void pushBackMapping(std::unordered_map<int,int>mapping){
+    void pushBackMapping(const std::unordered_map<int,int>& mapping){
         coarserToFinerMappings.push_back(mapping);
     }
 
-    std::unordered_map<int,int> getMapping(int level){
+    std::unordered_map<int,int> getMapping(const int& level){
         return coarserToFinerMappings[level];
     }
 
-    void pushBackMappingEdges(std::unordered_map<std::pair<int, int>, double, HashPair> edges){
+    void pushBackMappingEdges(const std::unordered_map<std::pair<int, int>, double, HashPair>& edges){
         edgesMappings.push_back(edges);
     }
 
-    std::unordered_map<std::pair<int, int>, double, HashPair> getMappingEdges(int level){
+    std::unordered_map<std::pair<int, int>, double, HashPair> getMappingEdges(const int& level) const{
         return edgesMappings[level];
     }
 
-    void pushBackVerticesWeights(std::unordered_map<int, double> weights){
+    void pushBackVerticesWeights(const std::unordered_map<int, double>& weights){
         verticesWeightsMapping.push_back(weights);
     }
 
     std::unordered_map<int, double> getMappingVerticesWeights(int level){
         return verticesWeightsMapping[level];
     }
-
-    void print(){
-        std::cout << "Vertices: " << std::endl;
-        for (const auto& entry : vertices) {
+    friend std::ostream& operator<<(std::ostream& os, const Graph& G){
+        os << "Vertices: " << std::endl;
+        for (const auto& entry : G.vertices) {
             int key = entry.first;
             double value = entry.second;
-            std::cout << "Vertex: " << key << ", Weight: " << value << std::endl;
+            os << "Vertex: " << key << ", Weight: " << value << std::endl;
         }
 
-        std::cout << "Edges: " << std::endl;
-        for (const auto& entry : edgeWeights) {
+        os << "Edges: " << std::endl;
+        for (const auto& entry : G.edgeWeights) {
             const auto& key = entry.first;
             double value = entry.second;
-            std::cout << "Edge: (" << key.first << ", " << key.second << "), Weight: " << value << std::endl;
+            os << "Edge: (" << key.first << ", " << key.second << "), Weight: " << value << std::endl;
         }
 
-        std::cout << "AdjacencyLists:" << std::endl;
-        for (const auto& entry : adjacencyList) {
+        os << "AdjacencyLists:" << std::endl;
+        for (const auto& entry : G.adjacencyList) {
             int key = entry.first;
             const std::vector<int>& neighbors = entry.second;
 
-            std::cout << "Vertex " << key << " neighbors: ";
+            os << "Vertex " << key << " neighbors: ";
             for (int neighbor : neighbors) {
-                std::cout << neighbor << " ";
+                os << neighbor << " ";
             }
-            std::cout << std::endl;
+            os << std::endl;
         }
+        return os;
     }
 
     // Function to clear the graph and reset it to its initial state
@@ -245,18 +238,25 @@ public:
         verticesWeightsMapping.clear();
     }
 
+    // Create n weight one nodes fully connected with negative index
+    // n is the weight of the father node
+    // returns the vector of all created vertices or an empty vector if the index is not valid
     std::vector<int> inflateVertex(const int& vertexID, int& offset) {
-        if(vertexID < 0) return std::vector<int>();
+        // negative index comes from weight 0 nodes or from the inflation
+        if(vertexID < 0) 
+            return std::vector<int>();
+        
         std::vector<int> inflation;
+
         auto vertex_it = vertices.find(vertexID);
-        if(vertex_it == vertices.end()) exit(1);
+        if(vertex_it == vertices.end()) 
+            return std::vector<int>();
         int weight = static_cast<int>(vertex_it->second);
         //inflation.push_back(vertex_it->first);
         for(int i = 0; i < weight-1; i++){
-            int new_id = -(offset+1);
             offset++;
-            inflation.push_back(new_id);
-            addVertex(new_id);
+            inflation.push_back(-offset);
+            addVertex(-offset);
         }
         for(auto source: inflation){
             for(auto destination: inflation){
@@ -268,8 +268,39 @@ public:
         }
         return inflation;
     }
+    // Create n weight 1 nodes connected with the previous one, with negative index
+    // n is the weight of the father node
+    // returns the vector of all created vertices or an empty vector if the index is not valid
+    std::vector<int> strechVertex(const int& vertexID, int& offset) {
+        // negative index comes from weight 0 nodes or from the inflation
+        if(vertexID < 0) 
+            return std::vector<int>();
+        
+        std::vector<int> stretched;
 
+        auto vertex_it = vertices.find(vertexID);
+        if(vertex_it == vertices.end()) 
+            return std::vector<int>();
+        int weight = static_cast<int>(vertex_it->second);
+        int prev_vertex = vertexID;
+        stretched.push_back(vertex_it->first);
+        for(int i = 0; i < weight-1; i++){
+            offset++;
+            stretched.push_back(-offset);
+            addVertex(-offset);
+            adjacencyList[prev_vertex].push_back(-offset);
+            adjacencyList[-offset].push_back(prev_vertex);
+            edgeWeights[{prev_vertex, -offset}] = INF_EDGE_WEIGHT;
+            edgeWeights[{-offset, prev_vertex,}] = INF_EDGE_WEIGHT;
+            prev_vertex = -offset;
+        }
+        return stretched;
+    }
+
+
+    // delete all nodes created throught inflation
     void deflate(){
+        // Vertices deletion
         for(auto it = vertices.begin(); it != vertices.end();){
             if(it->first < 0){
                 it = vertices.erase(it);
@@ -277,16 +308,21 @@ public:
                 ++it;
             }
         }
+        // Delete adjancenxy list of inflated nodes and upddate the one of the real nodes
         for(auto it = adjacencyList.begin(); it != adjacencyList.end();){
+            // Erase element 
             if(it->first < 0){
                 it = adjacencyList.erase(it);
             } else {
+                // Erase from the adjacency list
                 if(it->second.size()){
                     it->second.erase(std::remove_if(it->second.begin(), it->second.end(), [](int n) { return n < 0; }), it->second.end());
                 }
                 ++it;
             }
         }
+
+        // Edges deletion
         for(auto it = edgeWeights.begin(); it != edgeWeights.end();){
             if(it->second < 0){
                 it = edgeWeights.erase(it);
