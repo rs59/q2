@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include "graph.h"
 
+
 int current_count;
 
 std::ifstream& gotoLine(std::ifstream& file, unsigned int num){
@@ -53,14 +54,18 @@ void edgeRead(std::ifstream& file, Graph& graph, const unsigned int& nodeId, con
 }
 
 
-void readFromFile(const std::string& filename, Graph& graph, const int& numThreads, const unsigned int& startNodeId, const unsigned int& nodeToRead,  std::mutex& mtx, std::mutex& barMtx, std::condition_variable& cv, std::mutex& creation_mtx) {
+void readFromFile(const std::string& filename, Graph& graph, const int& i, const int& numThreads, const int startNodeId, const int nodeToRead,  std::mutex& mtx, std::mutex& barMtx, std::condition_variable& cv, std::mutex& creation_mtx) {
 
     creation_mtx.unlock();
-    std::ifstream file(filename);
+    std::ifstream file(filename); // create new reference to file
     if (file.is_open()) {
         
+        DEBUG_STDOUT("Unlocked creation_mtx, file open");
+        DEBUG_STDOUT("Will read i "+std::to_string(i)+" startnode "+std::to_string(startNodeId)+" numbertoread "+std::to_string(nodeToRead));
         gotoLine(file, startNodeId);
+        DEBUG_STDOUT("Thread now reading "+std::to_string(startNodeId)+" "+std::to_string(nodeToRead));
         vertexRead(file, graph, startNodeId, nodeToRead, mtx);
+        DEBUG_STDOUT("Completed "+std::to_string(startNodeId)+" "+std::to_string(nodeToRead));
 
         // barrier implementation with cv
         std::unique_lock<std::mutex> lock(barMtx);
@@ -68,14 +73,17 @@ void readFromFile(const std::string& filename, Graph& graph, const int& numThrea
         if (current_count == numThreads)
         {
                 // All threads have arrived, notify all waiting threads
+                DEBUG_STDOUT("All threads arrived.");
                 current_count = 0;
                 cv.notify_all();
         }
         else
         {
                 // Not all threads have arrived, wait
+                DEBUG_STDOUT("Thread now waiting....");
                 cv.wait(lock, []
                         { return current_count == 0; });
+                DEBUG_STDOUT("Thread active....");
         }
 
         gotoLine(file, startNodeId);
@@ -88,6 +96,7 @@ void readFromFile(const std::string& filename, Graph& graph, const int& numThrea
 
 Graph metisRead(const std::string& filename, const int& numThreads){
     
+    DEBUG_STDOUT("numThreads: "+std::to_string(numThreads));
     if(numThreads < 1) {
         std::cerr << "Null or negative number of threads" << std::endl;
         exit(1);
@@ -114,18 +123,32 @@ Graph metisRead(const std::string& filename, const int& numThreads){
     file.close();
     std::stringstream sLine(line);
     sLine >> numLines;
-    int linesPerThread = (numThreads>1) ? numLines/(numThreads-1)  : numLines;
-    //std::cout << "Number of Lines: " << numLines << std::endl;
-    //std::cout << "Number of Lines per Thread: " << linesPerThread << std::endl;
+    int linesPerThread = numLines/numThreads;
+    int lineStartsAt = 1-(numLines/numThreads);
+
+    DEBUG_STDOUT("Number of Lines: "+std::to_string(numLines));
+
+
     for (int i = 0; i < numThreads; ++i) {
         creation_mtx.lock();
-        int firstNodeId = linesPerThread*i + 1;
-        if(i == numThreads -1)
-            linesPerThread = numLines%(numThreads-1);
-        //std::cout << "Line for thread: "<< i+1 << ": " << firstNodeId << " to " << firstNodeId + linesPerThread -1  << std::endl;
-        threadPool.emplace_back([&] {
-            readFromFile(filename, graph, numThreads, firstNodeId, linesPerThread, std::ref(mtx), std::ref(barMtx), std::ref(cv), std::ref(creation_mtx));
-            });
+
+        lineStartsAt+=(numLines/numThreads);
+       
+        
+        DEBUG_STDOUT("Number of Lines assigned to thread #"+std::to_string(i)+": "+std::to_string(linesPerThread));
+        DEBUG_STDOUT("thread #"+std::to_string(i)+" lines ["+std::to_string((numLines/numThreads)*i + 1)+"--"+std::to_string(((numLines/numThreads)*i + 1) + linesPerThread-1)+"]");
+
+
+        // Assigns last thread all remaining lines
+        if(i == numThreads - 1) {
+          threadPool.emplace_back([&] {                                  // all remaining lines
+              readFromFile(filename, graph, i, numThreads, lineStartsAt, numLines-(linesPerThread*(numThreads-1)), std::ref(mtx), std::ref(barMtx), std::ref(cv), std::ref(creation_mtx));
+              });
+        } else {
+          threadPool.emplace_back([&] {
+              readFromFile(filename, graph, i, numThreads, lineStartsAt, linesPerThread, std::ref(mtx), std::ref(barMtx), std::ref(cv), std::ref(creation_mtx));
+              });
+        }
     }
 
     for (auto& thread : threadPool) {

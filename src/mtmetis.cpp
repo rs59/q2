@@ -1,3 +1,13 @@
+#define DEBUG 1
+
+#ifdef DEBUG
+#define DEBUG_STDERR(x) (std::cerr << (x) << std::endl)
+#define DEBUG_STDOUT(x) (std::cout << (x) << std::endl)
+#else 
+#define DEBUG_STDERR(x)
+#define DEBUG_STDOUT(x)
+#endif
+
 #include <iostream>
 #include "graph.h"
 #include <vector>
@@ -53,6 +63,7 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
 
     // Calculate the target weight for each partition
     double target_weight = total_weight / npartitions;
+    DEBUG_STDOUT("Target weight: "+std::to_string(target_weight));
 
     // Initialize the partitions and their current weight
     std::vector<std::vector<int>> partitions(npartitions);
@@ -143,6 +154,8 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
         if (allTrue) {
             // If all values are true, set condition to false and exit the loop
             condition = false;
+        } else {
+            DEBUG_STDOUT("Condition not met");
         }
     }
 
@@ -228,7 +241,7 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
     return partitions;
 }
 
-std::vector<int> findBoudaryVertices(Graph& graph, std::vector<std::vector<int>> initial_partitions) {
+std::vector<int> findBoundaryVertices(Graph& graph, std::vector<std::vector<int>> initial_partitions) {
     std::vector<int> boundaryVertices;
     std::unordered_map<int, double> vertices = graph.getVertices();
     std::unordered_map<std::pair<int, int>, double, HashPair> edgeWeights = graph.getEdgeWeights();
@@ -299,6 +312,7 @@ void WriteOutputToFile(const std::vector<std::vector<int>>& partitions, string o
 
 void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, string inputfile, string outputfile){
     auto start_time = std::chrono::high_resolution_clock::now();
+    DEBUG_STDOUT("Entering metisRead");
     graph = metisRead(inputfile, nthreads);      //load the graph from file
     // Stop the clock
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -317,6 +331,7 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     seconds = duration.count() / 1e6;
     std::cout << "Coarsening time: " << seconds << " seconds" << std::endl;
     start_time = std::chrono::high_resolution_clock::now();
+
     std::cout << std::endl << "INITIAL PARTITIONING" << std::endl;
     std::vector<std::vector<int>> initial_partitions = InitialPartitioning(coarsedGraph, npartitions, maxdeviation);
     end_time = std::chrono::high_resolution_clock::now();
@@ -324,8 +339,9 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     seconds = duration.count() / 1e6;
     std::cout << "Initial partitioning time: " << seconds << " seconds" << std::endl;
     start_time = std::chrono::high_resolution_clock::now();
+
     std::cout << std::endl << "BOUNDARY VERTICES" << std::endl;
-    std::vector<int> boundaryVertices = findBoudaryVertices(coarsedGraph, initial_partitions);
+    std::vector<int> boundaryVertices = findBoundaryVertices(coarsedGraph, initial_partitions);
     end_time = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     seconds = duration.count() / 1e6;
@@ -342,17 +358,21 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
 }
 
 
-int main() {
+
+int main(int argc, char* argv[]) {
+    if (argc < 6) {
+        std::cerr << "Usage: " << argv[0] << " nthreads npartitions maxdeviation inputfile outputfile" << std::endl;
+        return 1;
+    }
+
     // Start the clock
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    //resources\metismodels\x200000y440000m20q20.metis
-    const string inputfile = "resources/metismodels/x200000y440000m20q20.metis";
-    int nthreads = 20; // Change this to the desired number of threads
-    int npartitions = 10; // Change this to the desired number of partitions
-    float maxdeviation = 1.05; // Change this to the desired max deviation
-
-    std::string outputfile = "output_partition.txt"; // Change this to the output file name
+    int nthreads = std::stoi(argv[1]);
+    int npartitions = std::stoi(argv[2]);
+    float maxdeviation = std::stof(argv[3]);
+    std::string inputfile = argv[4];
+    std::string outputfile = argv[5];
 
     // Call the algorithm function
     MultithreadedMETIS(nthreads, npartitions, maxdeviation, inputfile, outputfile);

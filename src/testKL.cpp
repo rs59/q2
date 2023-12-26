@@ -1,9 +1,19 @@
+#define DEBUG 1
+
+#ifdef DEBUG
+#define DEBUG_STDERR(x) (std::cerr << (x) << std::endl)
+#define DEBUG_STDOUT(x) (std::cout << (x) << std::endl)
+#else 
+#define DEBUG_STDERR(x)
+#define DEBUG_STDOUT(x)
+#endif
+
+
 #include <map>
 #include <iostream>
 #include <iomanip>
 #include "graph.h"
-#include "reader.cpp"
-#define NPART 7
+#include "Reader.cpp"
 
 struct Partition {
     std::vector<std::pair<double, int>> part;
@@ -17,7 +27,7 @@ void fillPartition(Partition& partition, int& alreadyIns, const double& max_weig
     }
 }
 
-std::vector<vector<int>> makePartion(Graph & G, int numPartitions){
+std::vector<vector<int>> makePartition(Graph & G, int numPartitions){
     std::vector<vector<int>> fPartitions(numPartitions);
     std::vector<Partition> partitions(numPartitions);
     double totVertexWeight = 0;
@@ -61,12 +71,18 @@ std::vector<vector<int>> makePartion(Graph & G, int numPartitions){
 
 using namespace std;
 
-int main(){
-    //resources\metismodels\x100000y220000m20q20.metis
-    const string filename = "resources/metismodels/x100y200m20q20.metis";
-    const int numThreads = 7; // You can change the number of threadPool
+int main(int argc, char* argv[]) {
+    if (argc < 4) {
+        std::cerr << "Usage: " << argv[0] << " filename numThreads NPART" << std::endl;
+        return 1;
+    }
+
+    std::string filename = argv[1];
+    int numThreads = std::stoi(argv[2]);
+    int NPART = std::stoi(argv[3]);
+    
     Graph graph = metisRead(filename, numThreads);
-    auto partitions = makePartion(graph, NPART);
+    auto partitions = makePartition(graph, NPART);
     size_t i = 0;
     double tot_weight = 0;
     for(auto partition: partitions){
