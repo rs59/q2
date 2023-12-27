@@ -23,37 +23,6 @@ using namespace std;
 //To be defined in LoadGraphFromMemory
 Graph graph;
 
-double getCutSize(Graph& graph, std::vector<std::vector<int>>& partitions){
-    std::unordered_map<std::pair<int, int>, double, HashPair> edgeWeights = graph.getEdgeWeights();
-
-    double cutSize = 0.0;
-
-    for(const auto& edge : edgeWeights){
-        int nodeA = edge.first.first;
-        int nodeB = edge.first.second;
-        double value = edge.second;
-
-        int partitionA = -1;
-        int partitionB = -1;
-
-        for(int i=0; i<partitions.size(); i++){
-            if (std::find(partitions[i].begin(), partitions[i].end(), nodeA) != partitions[i].end()) {
-                partitionA = i;
-            }
-
-            if (std::find(partitions[i].begin(), partitions[i].end(), nodeB) != partitions[i].end()) {
-                partitionB = i;
-            }
-        }
-
-        if(partitionA != partitionB){
-            cutSize += value/2;
-        }
-    }
-
-    return cutSize;
-}
-
 std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npartitions, float maxDeviation) {
     // Calculate the total weight of all vertices in the graph
     double total_weight = 0;
@@ -89,14 +58,18 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
     while(condition){
         int k = -1;
 
+        std::cout << "New iteration" << std::endl;
+
         //if no node can be assigned in one complete cycle, remove the contraint that avoid to add nodes to heavy partitions
         bool useConstraint = madeAssignemt;
         madeAssignemt = false;
 
         for(int vertex : sorted_vertices){
+            std::cout << "Evaluating vertex: " << vertex << std::endl;
             k++;   //this will be used ony to update assigned vector
             if(assigned[k] == true){
                 //node is already assigned
+                std::cout << "Already assigned, continue" << std::endl;
                 continue;
             }
             //we try to find a partition connected to the node
@@ -117,8 +90,10 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
 
             //check if node is connected starting checking the partition with lower weight, and proceding in increasing weight order
             for(int i=0; i < npartitions; i++){
+                std::cout << "Trying to assign it to partition " << partitionOrder[i] << std::endl;
                 if(partition_weights[partitionOrder[i]] > maxDeviation*target_weight && useConstraint){
-                    //doing so we try to take into acount max deviation for initial partitioning
+                    //doing so we try to take into account max deviation for initial partitioning
+                    std::cout << "Continue because of maxdeviation" << std::endl;
                     continue;
                 }
 
@@ -140,6 +115,7 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
                 }
             }
             if(connected){
+                std::cout << "Adding vertex to partition " << min_weight_partition << std::endl;
                 assigned[k] = true;
                 partitions[min_weight_partition].push_back(vertex);
                 partition_weights[min_weight_partition] += coarsedGraph.getVertexWeight(vertex);
@@ -193,9 +169,14 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
 
         //for each vertex in lightest partition
         for(int i=(partitions.size()-1); i>0; i--){
-
+            int node;
             if(partitions[partitionOrder[0]].empty()){
-                int node = *partitions[partitionOrder[i]].begin();
+                if(!partitions[partitionOrder[i]].empty()){
+                    node = *partitions[partitionOrder[i]].begin();
+                }else{
+                    continue;
+                }
+
                 //move neighbor to partition
                 partitions[partitionOrder[i]].erase(std::remove(partitions[partitionOrder[i]].begin(), partitions[partitionOrder[i]].end(), node), partitions[partitionOrder[i]].end());
                 partitions[partitionOrder[0]].push_back(node);
@@ -299,7 +280,7 @@ void WriteOutputToFile(const std::vector<std::vector<int>>& partitions, string o
         std::cout << "Partition " << partitionIndex << ": ";
         int sum = 0;
         for (const auto& vertex : partition) {
-            //std::cout << vertex << " ";
+            std::cout << vertex << " ";
             sum += graph.getVertexWeight(vertex);
         }
         std::cout << std::endl;
@@ -314,6 +295,7 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     auto start_time = std::chrono::high_resolution_clock::now();
     DEBUG_STDOUT("Entering metisRead");
     graph = metisRead(inputfile, nthreads);      //load the graph from file
+
     // Stop the clock
     auto end_time = std::chrono::high_resolution_clock::now();
     // Calculate the duration
@@ -325,7 +307,7 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     //graph.print();
     start_time = std::chrono::high_resolution_clock::now();
     std::cout << std::endl << std::endl << "COARSENING" << std::endl;
-    Graph coarsedGraph = Coarsening(graph, nthreads);        //Coarse the initial graph
+    Graph coarsedGraph = Coarsening(graph, nthreads, npartitions);        //Coarse the initial graph
     end_time = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     seconds = duration.count() / 1e6;
@@ -339,7 +321,6 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     seconds = duration.count() / 1e6;
     std::cout << "Initial partitioning time: " << seconds << " seconds" << std::endl;
     start_time = std::chrono::high_resolution_clock::now();
-
     std::cout << std::endl << "BOUNDARY VERTICES" << std::endl;
     std::vector<int> boundaryVertices = findBoundaryVertices(coarsedGraph, initial_partitions);
     end_time = std::chrono::high_resolution_clock::now();
@@ -354,7 +335,6 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     seconds = duration.count() / 1e6;
     std::cout << "Uncoarsening time: " << seconds << " seconds" << std::endl;
     WriteOutputToFile(uncoarsened_partitions, outputfile);
-    //std::cout << "Cut size: " << getCutSize(graph, uncoarsened_partitions) << std::endl;
 }
 
 

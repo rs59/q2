@@ -301,7 +301,7 @@ void UpdateEdgeWeights(Graph& graph_ue, const std::unordered_map<std::pair<int, 
     std::cout << "UpdateEdgeWeights exited" << std::endl;
 }
 
-Graph Coarsening(Graph& graph, int nthreads){
+Graph Coarsening(Graph& graph, int nthreads, int npartitions){
     Graph coarsened_graph = graph;
 
     //Calc the number of isolated nodes
@@ -316,7 +316,7 @@ Graph Coarsening(Graph& graph, int nthreads){
     }
 
     int coarsest_graph_size = 0;
-    if(((graph.size()/3) + isolatedNodes) < coarsestGraphSize){
+    if(((graph.size()/3) + isolatedNodes) < coarsestGraphSize && ((graph.size()/3) + isolatedNodes) >= npartitions){
         coarsest_graph_size = (graph.size()/3) + isolatedNodes;
     }else{
         coarsest_graph_size = coarsestGraphSize;
