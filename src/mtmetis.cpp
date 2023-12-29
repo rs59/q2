@@ -60,7 +60,7 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
 
         std::cout << "New iteration" << std::endl;
 
-        //if no node can be assigned in one complete cycle, remove the contraint that avoid to add nodes to heavy partitions
+        //if no node can be assigned in one complete cycle, remove the constraint that avoid to add nodes to heavy partitions
         bool useConstraint = madeAssignemt;
         madeAssignemt = false;
 

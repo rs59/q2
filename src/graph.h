@@ -73,6 +73,7 @@ public:
         adjacencyList[vertexID] = std::vector<int>();
     }
 
+    //Used to make a temp graph gain the mapping informations for uncoarsening thte new level
     void copyCoarseningData(Graph& other){
         // Clear mappings and other data
         coarserToFinerMappings.clear();
@@ -175,11 +176,12 @@ public:
         return edgeWeights;
     }
 
-
+    //get the number of levels
     int getCoarsingLevel(){
         return coarserToFinerMappings.size();
     }
 
+    //Insert vertices mapping for a new level
     void pushBackMapping(std::unordered_map<int,int>mapping){
         coarserToFinerMappings.push_back(mapping);
     }
@@ -188,6 +190,7 @@ public:
         return coarserToFinerMappings[level];
     }
 
+    //Insert edges mapping for a new level
     void pushBackMappingEdges(std::unordered_map<std::pair<int, int>, double, HashPair> edges){
         edgesMappings.push_back(edges);
     }
@@ -196,6 +199,7 @@ public:
         return edgesMappings[level];
     }
 
+    //Insert vertices weights for a new level
     void pushBackVerticesWeights(std::unordered_map<int, double> weights){
         verticesWeightsMapping.push_back(weights);
     }
