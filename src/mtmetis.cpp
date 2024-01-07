@@ -17,6 +17,7 @@
 #include "coarsening.cpp"
 #include "uncoarsening.cpp"
 #include "Reader.cpp"
+//#include "KL2.cpp"
 
 using namespace std;
 
@@ -58,18 +59,14 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
     while(condition){
         int k = -1;
 
-        std::cout << "New iteration" << std::endl;
-
         //if no node can be assigned in one complete cycle, remove the constraint that avoid to add nodes to heavy partitions
         bool useConstraint = madeAssignemt;
         madeAssignemt = false;
 
         for(int vertex : sorted_vertices){
-            std::cout << "Evaluating vertex: " << vertex << std::endl;
             k++;   //this will be used ony to update assigned vector
             if(assigned[k] == true){
                 //node is already assigned
-                std::cout << "Already assigned, continue" << std::endl;
                 continue;
             }
             //we try to find a partition connected to the node
@@ -90,10 +87,8 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
 
             //check if node is connected starting checking the partition with lower weight, and proceding in increasing weight order
             for(int i=0; i < npartitions; i++){
-                std::cout << "Trying to assign it to partition " << partitionOrder[i] << std::endl;
                 if(partition_weights[partitionOrder[i]] > maxDeviation*target_weight && useConstraint){
                     //doing so we try to take into account max deviation for initial partitioning
-                    std::cout << "Continue because of maxdeviation" << std::endl;
                     continue;
                 }
 
@@ -115,7 +110,6 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
                 }
             }
             if(connected){
-                std::cout << "Adding vertex to partition " << min_weight_partition << std::endl;
                 assigned[k] = true;
                 partitions[min_weight_partition].push_back(vertex);
                 partition_weights[min_weight_partition] += coarsedGraph.getVertexWeight(vertex);
@@ -134,8 +128,6 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
             DEBUG_STDOUT("Condition not met");
         }
     }
-
-    std::cout << "Start refining initial partitioning" << std::endl;
 
     int iterations = 0;
     //Perform movements until is balanced, or until it iterates one time for vertex
@@ -216,8 +208,6 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
         }
         iterations++;
     }
-
-    std::cout << "It iterates " << iterations << " times to balance initial partitions" << std::endl;
 
     return partitions;
 }
