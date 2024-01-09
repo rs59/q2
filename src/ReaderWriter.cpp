@@ -8,10 +8,11 @@
 #include <condition_variable>
 #include "graph.h"
 
-
+//Boolean compiler definitions
 #define TRUE 1
 #define FALSE 0
 
+// Strct to save a single Neighbout with the weight of the edge between the 2 nodes
 struct edge{
     int neighbourNode;
     double weight;
@@ -19,6 +20,7 @@ struct edge{
     edge(const int _node, const double _weight) : neighbourNode(_node), weight(_weight) {}
 };
 
+// Struct to save the node and its neighbours
 struct node{
     int id;
     double weight;
@@ -27,19 +29,19 @@ struct node{
     node(const int _id, const double _weight, const std::vector<edge> _neighbours) : id(_id),  weight(_weight), neighbours(_neighbours) {}
 };
 
-
+// Struct to compress the sincronizartion variables
 struct mysync {
     std::mutex creationMtx, barrierMtx, writingMtx, sectionMtx;
     std::shared_mutex eofMtx;
     std::condition_variable barrier_cv;
 };
 
+// Global variables for sincronization
 int section;
 int current_count;
-char endOfFile = FALSE;
+char endOfFile;
 
-
-
+// Thread safe for reading and writing eof variable
 int getEOF(std::shared_mutex& mtx){
     std::shared_lock lock(mtx);
     return endOfFile;
@@ -50,6 +52,8 @@ void setEOF(std::shared_mutex& mtx, char value){
     endOfFile = value;
 }
 
+
+// Function to move the file pointer to a specific line
 std::ifstream& gotoLine(std::ifstream& file, unsigned int num){
     file.seekg(0, std::ios::beg);
     file.clear();
@@ -62,7 +66,7 @@ std::ifstream& gotoLine(std::ifstream& file, unsigned int num){
     return file;
 }
 
-
+// Function to read the file and save in the thread local variable the value read
 void readLines(std::ifstream& file, std::vector<node>& nodes, const int& startId, const unsigned int& linesToRead){
     double nodeWeight, edgeWeight;
     int nodeNeighbour;
@@ -88,14 +92,15 @@ void readLines(std::ifstream& file, std::vector<node>& nodes, const int& startId
     }
 }
 
-void addVerticesToGraph(Graph& graph, const std::vector<node>& nodes, std::mutex& writeMtx)
-{
+// Function to insert the value read to the Graph data-class
+void addVerticesToGraph(Graph& graph, const std::vector<node>& nodes, std::mutex& writeMtx){
     std::unique_lock<std::mutex> lock(writeMtx);
     for(const auto& node: nodes){
         graph.addVertex(node.id, node.weight);
     }
 }
 
+// Function to insert all edges read into the graph data class
 void addEdgesToGraph(Graph& graph, const std::vector<node>& nodes, std::mutex& writeMtx){
     std::unique_lock<std::mutex> lock(writeMtx);
     for(const auto& node: nodes){
@@ -105,6 +110,7 @@ void addEdgesToGraph(Graph& graph, const std::vector<node>& nodes, std::mutex& w
     }
 }
 
+// Thread safe read and update the section variable
 int sectionUpdate(std::mutex& mtx) {
     std::unique_lock lock(mtx);
     int temp = section;
@@ -113,24 +119,32 @@ int sectionUpdate(std::mutex& mtx) {
 }
 
 
-
+// Thread Function to read multiple sequential sections of lines
 void readFromFile(int threadNum, const std::string& filename, Graph& graph, const int& numThreads, const int nodeToRead,  mysync& sincro) {
-
+    // Unlock the mutex to proceed the creation of the next one
     sincro.creationMtx.unlock();
-    
-    std::ifstream file(filename); // create new reference to file
+    // Create new reference to file
+    std::ifstream file(filename); 
+    // Local variable to read the data
     std::vector<node> nodes;
+    // Check file successfully open
     if (file.is_open()) {
+        // Keep reading until any thread hits the EOF
         while(!getEOF(sincro.eofMtx)){
             DEBUG_STDOUT("Unlocked creation_mtx, file open");
+            // Update of the section of the file to Read
             int thisSection = sectionUpdate(sincro.sectionMtx);
+            // Update of the start node id to give
             int startId = thisSection * nodeToRead + 1;
             DEBUG_STDOUT("Thread #" + std::to_string(threadNum) + " Section:" + std::to_string(thisSection));
             DEBUG_STDOUT("Thread #" + std::to_string(threadNum) + " Lines: ["+std::to_string(startId) + " - " + std::to_string(startId + nodeToRead) + "]");
+            // Update File Pointer
             gotoLine(file, startId);
+            // Read Data from file and save into @nodes
             readLines(file, nodes, startId, nodeToRead);
             DEBUG_STDOUT("Completed "+std::to_string(startId)+" - "+std::to_string(startId+nodeToRead));
             DEBUG_STDOUT(file.rdstate());
+            // Check if the file reacher the end, file.eof() not working: flags not risen
             std::string temp;
             if(!getline(file, temp)){
                 DEBUG_STDOUT(file.rdstate());
@@ -142,10 +156,12 @@ void readFromFile(int threadNum, const std::string& filename, Graph& graph, cons
     } else {
         std::cerr << "Error: Could not open file " << std::endl;
     }
+    // End of Reading, close the File
     file.close();
+    // Save Vertices Read in to the Graph
     addVerticesToGraph(graph, nodes, sincro.writingMtx);
 
-    // barrier implementation with cv
+    // Barrier implementation with cv
     std::unique_lock<std::mutex> lock(sincro.barrierMtx);
     current_count++;
     if (current_count == numThreads)
@@ -163,9 +179,11 @@ void readFromFile(int threadNum, const std::string& filename, Graph& graph, cons
                     { return current_count == 0; });
             DEBUG_STDOUT("Thread active....");
     }
-        addEdgesToGraph(graph, nodes, sincro.writingMtx);
+    // Save Egdes Read in to the Graph
+    addEdgesToGraph(graph, nodes, sincro.writingMtx);
 }
-
+// Function that reads the first line of the file 
+// containing the total number of nodes and edges in the file
 unsigned int getTotLines(const std::string& fileName){
     std::string line;
     unsigned int numLines;
@@ -188,21 +206,22 @@ Graph metisRead(const std::string& filename, const int& numThreads){
         std::cerr << "Null or negative number of threads" << std::endl;
         exit(1);
     }
-
+    // Data
     Graph graph;
 
     std::vector<std::thread> threadPool;
 
+    // Syncronization Data
     mysync sincro;
     current_count = 0;
     section = 0;
     setEOF(sincro.eofMtx, FALSE);
-    
+    // Calculate the lines per thread to read
     unsigned int numLines = getTotLines(filename);
     int linesPerSection = numLines/(numThreads*1.5);
     
     DEBUG_STDOUT("Number of Lines: "+std::to_string(linesPerSection));
-
+    // Creations of the threads 
     for (int i = 0; i < numThreads; i++) {
         sincro.creationMtx.lock();
         
@@ -212,7 +231,7 @@ Graph metisRead(const std::string& filename, const int& numThreads){
                 readFromFile(i, filename, graph, numThreads, linesPerSection, std::ref(sincro));
             });
     }
-
+    // Waiting for all threads to terminate
     for (auto& thread : threadPool) {
         thread.join();
     }
@@ -220,7 +239,7 @@ Graph metisRead(const std::string& filename, const int& numThreads){
     return graph;
 }
 
-
+// Function to write graph partitions to a file
 void writeToFile(const std::vector<std::vector<int>>& partitions, const std::string& filename) {
     // Open the file
     std::ofstream of(filename);
