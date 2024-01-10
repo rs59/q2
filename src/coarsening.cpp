@@ -6,26 +6,32 @@
 #include <mutex>
 #include <condition_variable>
 
-int coarsestGraphSize = 30000;
+int coarsestGraphSize = 1000;
 
 int current_ctr;
 
 // Function to compute matching between vertices for coarsening
 // This function calculates a matching between vertices in the graph, ensuring that each vertex is matched with an unmatched neighbor.
-void ComputeMatchingSubset(Graph& graph_cm, std::unordered_map<int, int>& matching, std::unordered_set<int>& unmatchedVertices,  std::mutex& mutex, std::mutex&barrierMutex,
+void ComputeMatchingSubset(Graph& graph_cm, std::unordered_map<int, int>& matching, std::unordered_set<int>& unmatchedVertices, std::unordered_set<int>& isolatedVertices,  std::mutex& mutex, std::mutex&barrierMutex,
                            const std::unordered_map<int, double>& vertices, int start, int end, int numThreads, std::condition_variable& cv) {
 
     //std::cout << "Thread[" << start << "," << end << "] started" << std::endl;
     mutex.unlock();  //let an other thread start
 
-    //Populate the set of unmatched vertices
+    // Create a temporary set to store unmatched vertices
+    std::unordered_set<int> tempUnmatchedVertices;
+
+    // Populate the set of unmatched vertices without locking
     auto vertexIterator = vertices.begin();
     std::advance(vertexIterator, start); // Move the iterator to the starting position
     for (int i = start; i < end && vertexIterator != vertices.end(); ++i, ++vertexIterator) {
-        mutex.lock();
-        unmatchedVertices.insert(vertexIterator->first);
-        mutex.unlock();
+        tempUnmatchedVertices.insert(vertexIterator->first);
     }
+
+    // Lock the mutex and update the main unmatchedVertices set
+    mutex.lock();
+    unmatchedVertices.insert(tempUnmatchedVertices.begin(), tempUnmatchedVertices.end());
+    mutex.unlock();
 
     //barrier implementation with cv
     std::unique_lock<std::mutex> lock(barrierMutex);
@@ -60,6 +66,11 @@ void ComputeMatchingSubset(Graph& graph_cm, std::unordered_map<int, int>& matchi
         const std::vector<int>& neighbors = graph_cm.getNeighbors(vertexId);
         int matched_neighbor = -1;
 
+        if(neighbors.size() == 0){
+            //isolated node
+            isolatedVertices.insert(vertexId);
+        }
+
         // Find the first unmatched neighbor
         for (int neighbor : neighbors) {
             //std::cout << "Neigbor: " << neighbor << std::endl;
@@ -90,6 +101,7 @@ void ComputeMatchingSubset(Graph& graph_cm, std::unordered_map<int, int>& matchi
 std::unordered_map<int, int> ComputeMatching(Graph& graph_cm, int numThreads) {
     std::unordered_map<int, int> matching;
     std::unordered_set<int> unmatchedVertices;
+    std::unordered_set<int> isolatedVertices;
     std::unordered_map<int, double> vertices = graph_cm.getVertices();
 
     std::cout << "ComputeMatching entered" << std::endl;
@@ -118,7 +130,7 @@ std::unordered_map<int, int> ComputeMatching(Graph& graph_cm, int numThreads) {
         }
 
         threads.emplace_back([&] {
-            ComputeMatchingSubset(graph_cm, matching, unmatchedVertices, std::ref(mutex), std::ref(barrierMutex), vertices, start, end, numThreads, std::ref(cv));
+            ComputeMatchingSubset(graph_cm, matching, unmatchedVertices, isolatedVertices, std::ref(mutex), std::ref(barrierMutex), vertices, start, end, numThreads, std::ref(cv));
         });
     }
 
@@ -126,6 +138,24 @@ std::unordered_map<int, int> ComputeMatching(Graph& graph_cm, int numThreads) {
     for (std::thread& thread : threads) {
         thread.join();
     }
+
+    //Match isolated nodes
+    auto it = isolatedVertices.begin();
+
+    // Iterate until we reach the end of isolatedVertices or just before the last element
+    while (it != isolatedVertices.end() && std::next(it) != isolatedVertices.end()) {
+        // Match the current node with the next node
+        int node1 = *it;
+        int node2 = *std::next(it);
+
+        // Store the matching pair in the map
+        matching[node1] = node2;
+        matching[node2] = node1;
+
+        // Move the iterator to the next pair of isolated vertices
+        std::advance(it, 2);
+    }
+
     std::cout << "ComputeMatching exited" << std::endl;
 
     return matching;
@@ -244,6 +274,8 @@ void UpdateEdgeWeightsSubset(Graph& graph_ue, const std::unordered_map<std::pair
     //std::cout << "Thread[" << start << "," << end << "]" << std::endl;
     mutex.unlock();
 
+    std::unordered_map<std::pair<int, int>, double, HashPair> tempEdge_weights;
+
     auto edgeIterator = edge_weights.begin();
     std::advance(edgeIterator, start); // Move the iterator to the starting position
     for (int i = start; i < end && edgeIterator != edge_weights.end(); ++i, ++edgeIterator) {
@@ -261,20 +293,28 @@ void UpdateEdgeWeightsSubset(Graph& graph_ue, const std::unordered_map<std::pair
                 continue;
             }
 
-            // Check if an edge already exists between the coarsed vertices
-            if (graph_ue.containsEdge(coarsedSource, coarsedDestination)) {
-                double existingWeight = graph_ue.getEdgeWeight(coarsedSource, coarsedDestination);
-                // Sum the weights if an edge already exists
-                mutex.lock();
-                graph_ue.addEdge(coarsedSource, coarsedDestination, existingWeight + (value/2)); //value is /2 because we have double edges
-                mutex.unlock();
-            } else {
-                mutex.lock();
-                graph_ue.addEdge(coarsedSource, coarsedDestination, (value/2)); //value is /2 because there are double edges
-                mutex.unlock();
-            }
+            tempEdge_weights.emplace(std::make_pair(coarsedSource,coarsedDestination), value);
         }
     }
+
+    int coarsedSource;
+    int coarsedDestination;
+    double value;
+    mutex.lock();
+    for (auto it = tempEdge_weights.begin(); it != tempEdge_weights.end(); ++it) {
+        coarsedSource = it->first.first;
+        coarsedDestination = it->first.second;
+        value = it->second;
+
+        // Check if an edge already exists between the coarsed vertices
+        if (graph_ue.containsEdge(coarsedSource, coarsedDestination)) {
+            double existingWeight = graph_ue.getEdgeWeight(coarsedSource, coarsedDestination);
+            graph_ue.addEdge(coarsedSource, coarsedDestination, existingWeight + (value/2)); //value is /2 because we have double edges
+        } else {
+            graph_ue.addEdge(coarsedSource, coarsedDestination, (value/2)); //value is /2 because there are double edges
+        }
+    }
+    mutex.unlock();
 }
 
 // Function to update edge weights after collapsing vertices

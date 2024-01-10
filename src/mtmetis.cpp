@@ -55,6 +55,8 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
     bool condition = true;
     bool madeAssignemt = true;  //check if the previous turn we made an assignment, if not remove a constraint
 
+    int assignedVerticesCtr = 0;
+
     //Greedy assignment of vertices to partitions
     while(condition){
         int k = -1;
@@ -114,6 +116,7 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
                 partitions[min_weight_partition].push_back(vertex);
                 partition_weights[min_weight_partition] += coarsedGraph.getVertexWeight(vertex);
                 madeAssignemt = true;
+                assignedVerticesCtr++;
             }
         }
 
@@ -183,6 +186,16 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
 
                 for(int node : partitions[partitionOrder[i]]){
                     //Check all nodes of the heaviest partition not already checked
+                    if(graph.getNeighbors(node).size() == 0){
+                        //Evaluated node in heaviest partition is disconnected, swap it
+                        partitions[partitionOrder[i]].erase(std::remove(partitions[partitionOrder[i]].begin(), partitions[partitionOrder[i]].end(), node), partitions[partitionOrder[i]].end());
+                        partitions[partitionOrder[0]].push_back(node);
+                        partition_weights[partitionOrder[i]] -= graph.getVertexWeight(node);
+                        partition_weights[partitionOrder[0]] += graph.getVertexWeight(node);
+                        swapped = true;
+                        break;
+                    }
+
                     for(int neighbor : neighbors){
                         if(neighbor == node){
                             //move neighbor to partition
@@ -235,6 +248,11 @@ std::vector<int> findBoundaryVertices(Graph& graph, std::vector<std::vector<int>
 
         // Initialize a flag to check if the vertex is a boundary vertex
         bool isBoundary = false;
+
+        if(neighbors.size() == 0){
+            //isolated node, add to boundaries
+            isBoundary = true;
+        }
 
         // Iterate through the neighbors of the current vertex
         for (int neighbor : neighbors) {

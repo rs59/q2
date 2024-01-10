@@ -131,7 +131,6 @@ void uncoarseBoundaries(Graph& graph, std::unordered_map<int, int>& coarser_to_f
             }
         }
 
-        //Chat-GPT code to test
         if (std::any_of(neighbors.begin(), neighbors.end(), [&](int neighbor) {
             int partitionNeighbor = -1; // Initialize to an invalid partition
 
@@ -157,6 +156,8 @@ void uncoarseBoundaries(Graph& graph, std::unordered_map<int, int>& coarser_to_f
 //Function to calculate the vertex gain for each boundary vertex, that will be used during refinement step
 void refinementStep(Graph& graph, std::vector<std::pair<int, double>>& vertexGains, std::vector<std::vector<int>>& partitions, std::vector<int>& boundaryVertices, std::mutex& mutex, int start, int end){
     mutex.unlock();
+
+    std::vector<std::pair<int, double>> tempVertexGains;
 
     // Calculate initial vertex gains
     // Iterate through each boundary vertex from start to end
@@ -197,11 +198,12 @@ void refinementStep(Graph& graph, std::vector<std::pair<int, double>>& vertexGai
                 initialGain += weight;
             }
         }
-        mutex.lock();
-        vertexGains.emplace_back(vertexID, initialGain);
-        mutex.unlock();
+        tempVertexGains.emplace_back(vertexID, initialGain);
     }
 
+    mutex.lock();
+    vertexGains.insert(vertexGains.end(), tempVertexGains.begin(), tempVertexGains.end());
+    mutex.unlock();
 }
 
 //After refinement step, some boundary vertex could have been changed, update the boundary vertices each time a vertex is moved (check only that node and his neighbors)
@@ -313,8 +315,18 @@ void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, 
 
                 for(int node : partitions[partitionOrder[i]]){
                     //Check all nodes of the heaviest partition not already checked
+                    if(graph.getNeighbors(node).size() == 0){
+                        //Evaluated node in heaviest partition is disconnected, swap it
+                        partitions[partitionOrder[i]].erase(std::remove(partitions[partitionOrder[i]].begin(), partitions[partitionOrder[i]].end(), node), partitions[partitionOrder[i]].end());
+                        partitions[partitionOrder[0]].push_back(node);
+                        partition_weights[partitionOrder[i]] -= graph.getVertexWeight(node);
+                        partition_weights[partitionOrder[0]] += graph.getVertexWeight(node);
+                        swapped = true;
+                        break;
+                    }
+
                     for(int neighbor : neighbors){
-                        if(neighbor == node){
+                        if(neighbor == node ){
                             //move neighbor to partition
                             partitions[partitionOrder[i]].erase(std::remove(partitions[partitionOrder[i]].begin(), partitions[partitionOrder[i]].end(), neighbor), partitions[partitionOrder[i]].end());
                             partitions[partitionOrder[0]].push_back(node);
