@@ -71,6 +71,28 @@ public:
     void addVertex(int vertexID, double weight = 1) {
         vertices[vertexID] = weight;
         adjacencyList[vertexID] = std::vector<int>();
+
+        // Update ORIGINAL_VERTICES_COUNT
+        ORIGINAL_VERTICES_COUNT = std::count_if(vertices.begin(), vertices.end(),
+            [](const std::pair<int, double>& entry) { return entry.first >= 0; });
+
+    }
+
+    
+    // Function to add a vertex to the graph with its weight
+    void addExpandedVertex(int parentVertexID, double weight = 1) {
+        int thisID = ORIGINAL_VERTICES_COUNT;
+        vertices[thisID] = weight;
+        adjacencyList[thisID] = std::vector<int>();
+        // adjacencyList[vertexID].push_back(parentVertexID);
+
+        // Update ORIGINAL_VERTICES_COUNT
+        ORIGINAL_VERTICES_COUNT = std::count_if(vertices.begin(), vertices.end(),
+            [](const std::pair<int, double>& entry) { return entry.first >= 0; });
+    }
+
+    int getExpandedStart() const {
+      return ORIGINAL_VERTICES_COUNT - 1;
     }
 
     //Used to make a temp graph gain the mapping informations for uncoarsening thte new level
@@ -176,6 +198,10 @@ public:
         return edgeWeights;
     }
 
+    std::unordered_map<int, int> getExpandedRange() const {
+      return expandedRange;
+    }
+
     //get the number of levels
     int getCoarsingLevel(){
         return coarserToFinerMappings.size();
@@ -247,6 +273,10 @@ public:
         coarserToFinerMappings.clear();
         edgesMappings.clear();
         verticesWeightsMapping.clear();
+        expandedRange.clear();
+        
+        // Reset ORIGINAL_VERTICES_COUNT
+        ORIGINAL_VERTICES_COUNT = 0;
     }
 
     std::vector<int> inflateVertex(const int& vertexID, int& offset) {
@@ -302,8 +332,12 @@ public:
 
 
 private:
+    // Member variable to track the count of original vertices
+    int ORIGINAL_VERTICES_COUNT;
+
     // Data structures to store the graph data
     std::unordered_map<int, double> vertices;  // VertexID -> Weight
+    std::unordered_map<int, int> expandedRange;  // VertexID -> Starting vertex ID of expanded vertices (or 0, indicating none); weight (number of expanded vertices) comes from vertices unordered_map
     std::unordered_map<int, std::vector<int>> adjacencyList;  // VertexID -> List of neighbors
     std::unordered_map<std::pair<int, int>, double, HashPair> edgeWeights; // (Source, Destination) -> Edge Weight
 

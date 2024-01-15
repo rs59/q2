@@ -6,38 +6,43 @@
 
 #define N 3
 
-
+// Structure to represent a pair of nodes and the weight of the edge between them
 struct SwapNodes {
     std::pair<int, int> nodes;
     double weight;
 };
 
+// Function to calculate the D values for a partition
 std::map<int, double> DCalcPartition(const Graph &G, const std::vector<int> &nodesA, const std::vector<int> &nodesB) {
     std::map<int, double> dValues;
+    // Iterate through nodes in nodesA
     for (auto &nodeA : nodesA) {
         double tDValue = 0;
         auto nNodes = G.getNeighborsKL(nodeA);
+        // Iterate through neighbors of the current node
         for (auto node : nNodes) {
-            // The Edge Exist as i'm exploring only the neibourghs
             auto tEdgeWeight = G.getEdgeWeightKL(nodeA, node);
             auto nodeAIt = std::find(nodesA.begin(), nodesA.end(), node);
             auto nodeBIt = std::find(nodesB.begin(), nodesB.end(), node);
-            if(nodeAIt != nodesA.end()) {
-                    tDValue -= tEdgeWeight;
-            }else if(nodeBIt != nodesB.end()) {
-                    tDValue += tEdgeWeight;
+            // Update the D value based on the partition of the neighboring node
+            if (nodeAIt != nodesA.end()) {
+                tDValue -= tEdgeWeight;
+            } else if (nodeBIt != nodesB.end()) {
+                tDValue += tEdgeWeight;
             }
         }
-        dValues.insert(std::pair<double, int>(nodeA, tDValue));
+        dValues.insert(std::pair<int, double>(nodeA, tDValue));
     }
     return dValues;
 }
 
+// Function to calculate D values for both partitions
 void calcD(const Graph &G, const std::vector<int> &nodesA, std::map<int, double> &dValuesA, const std::vector<int> &nodesB, std::map<int, double> &dValuesB) {
     dValuesA = DCalcPartition(G, nodesA, nodesB);
     dValuesB = DCalcPartition(G, nodesB, nodesA);
 }
 
+// Function to update D values after a node swap
 void updateD(const Graph &G, std::map<int, double> &dValuesA, std::map<int, double> &dValuesB, std::pair<int, int> swapNodes) {
     dValuesA.erase(swapNodes.first);
     dValuesB.erase(swapNodes.second);
@@ -51,22 +56,7 @@ void updateD(const Graph &G, std::map<int, double> &dValuesA, std::map<int, doub
     }
 }
 
-/*void dValPrint(std::map<int, double> dValuesA, std::map<int, double> dValuesB)
-{
-    std::cout << "D values A: " << std::endl;
-    for (auto dVal : dValuesA)
-    {
-        std::cout << dVal.first << ": " << dVal.second << std::endl;
-    }
-    std::cout << std::endl << "D values B: " << std::endl;
-    for (auto dVal : dValuesB)
-    {
-        std::cout << dVal.first << ": " << dVal.second << std::endl;
-    }
-    std::cout << std::endl;
-}*/
-
-// }
+// Function to calculate gains for all possible node swaps
 std::multimap<double, std::pair<int, int>> gainCalc(Graph &G, std::map<int, double> dValuesA, std::map<int, double> dValuesB) {
     std::multimap<double, std::pair<int, int>> gains;
     for (auto dValueA : dValuesA) {
@@ -78,6 +68,7 @@ std::multimap<double, std::pair<int, int>> gainCalc(Graph &G, std::map<int, doub
     return gains;
 }
 
+// Function to calculate the index with maximum gain in a list of swap nodes
 int calcMaxGain(std::vector<SwapNodes> swapNodes, double &max_gain) {
     double gain;
     int k;
@@ -96,48 +87,52 @@ int calcMaxGain(std::vector<SwapNodes> swapNodes, double &max_gain) {
     }
     return k;
 }
-void printGain(std::multimap<double, std::pair<int, int>> gains){
-    std::cout << "Gains: " << std::endl; 
-    for(auto gain: gains){
-        std::cout << "Edge ("<< gain.second.first << "," << gain.second.second << "): " << gain.first << std::endl;
+
+// Function to print gains
+void printGain(std::multimap<double, std::pair<int, int>> gains) {
+    std::cout << "Gains: " << std::endl;
+    for (auto gain : gains) {
+      if (gain.first != 0 )
+        std::cout << "Edge (" << gain.second.first << "," << gain.second.second << "): " << gain.first << std::endl;
     }
 }
 
+// Function to update the partition after a swap
 void updatePartition(std::vector<int> &nodesA, std::vector<int> &nodesB, std::vector<SwapNodes> swapNodes, int k) {
     for (int i = 0; i < k + 1; i++) {
-        // Find the indices of the values in the vectors
         auto itA = std::find(nodesA.begin(), nodesA.end(), swapNodes[i].nodes.first);
         auto itB = std::find(nodesB.begin(), nodesB.end(), swapNodes[i].nodes.second);
-
-        // Check if the values were found
         if (itA != nodesA.end() && itB != nodesB.end()) {
-            // Swap the values using std::swap
             std::iter_swap(itA, itB);
         }
     }
 }
 
-void partitionPrint( std::vector<int> nodesA, std::vector<int> nodesB){
-    std::cout << "Partiotion A: " <<std::endl;
-    for(auto i: nodesA){
+// Function to print the partition
+void partitionPrint(std::vector<int> nodesA, std::vector<int> nodesB) {
+    std::cout << "Partition A: " << std::endl;
+    for (auto i : nodesA) {
         std::cout << i << ", ";
     }
-    std::cout << std::endl << "Partiotion B: " <<std::endl;
-    for(auto i: nodesB){
+    std::cout << std::endl
+              << "Partition B: " << std::endl;
+    for (auto i : nodesB) {
         std::cout << i << ", ";
     }
     std::cout << std::endl;
 }
 
-
-int KL_Partitioning(Graph &G, std::vector<int>& nodesA, std::vector<int>& nodesB) {
+// Main KL Partitioning function
+int KL_Partitioning(Graph &G, std::vector<int> &nodesA, std::vector<int> &nodesB) {
     std::map<int, double> dValuesA, dValuesB;
     double max_gain;
     int i = 0;
+    // Repeat until convergence or maximum iterations
     do {
         i++;
         std::vector<SwapNodes> swapNodes;
         calcD(G, nodesA, dValuesA, nodesB, dValuesB);
+        // Repeat until no further improvement in gain
         while (!dValuesA.empty() && !dValuesB.empty()) {
             auto gains = gainCalc(G, dValuesA, dValuesB);
             auto mostGain_it = gains.rbegin();
@@ -146,12 +141,17 @@ int KL_Partitioning(Graph &G, std::vector<int>& nodesA, std::vector<int>& nodesB
             }
             swapNodes.push_back({mostGain_it->second, mostGain_it->first});
             updateD(G, dValuesA, dValuesB, mostGain_it->second);
+            std::cout << "\tc  " << std::endl;
+            printGain(gains);
         }
+        // Find the index with the maximum cumulative gain
         int k = calcMaxGain(swapNodes, max_gain);
-        if(max_gain > 0)
+        std::cout << "\tmg " << max_gain << std::endl;
+        // Update partition if there is a positive gain
+        if (max_gain > 0)
             updatePartition(nodesA, nodesB, swapNodes, k);
-    } while (max_gain > 0 && i < 100);
-    return i;
+    } while (max_gain > 0 && i < 100); // Convergence condition
+    return i; // Return the number of iterations
 }
 
 
