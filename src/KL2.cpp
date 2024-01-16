@@ -88,51 +88,90 @@ std::vector<std::vector<int>> makeNodePartion2(Graph& G, const int& numPartition
     int expandedStart = G.getExpandedStart();
 
     // G.print();
-    G.expandNodes();
-    // G.print();
     
-    auto expandedRange = G.getExpandedRange();
-    
+    std::unordered_map<int, int> partition_assignments;
+    std::unordered_map<int, int> partition_totalweights;
+
     // Step 1: Randomly assign each original vertex to partition A or B
     for(const auto& entry : nodes){
         int vertexID = entry.first;
         double weight = entry.second;
-        int exStartIndex = expandedRange[vertexID];
         
         // std::cout << " id: " << vertexID << " weight: " << weight << " exStartIndex: " << exStartIndex << std::endl;
 
         int val = rand() % 2 == 0;
         if (vertexID < expandedStart) { // if it is not an expanded node
           partitions[val].push_back(entry.first); // put node in random partition
-          for(int i=0; i < weight; i++) {  // if it is an expanded node
-            // cout << "expanded range: " << expandedRange[vertexID];
-            partitions[val].push_back(exStartIndex+i); // Step 2: Assign all extra generated vertices to the same partition as their original vertex
-          }
-        }
-    }
-    
-    
-    // Step 3: Assign about 1/2 of the extra nodes from the largest partition to the partition with fewer nodes
-    int count_partition_a = partitions[0].size();
-    int count_partition_b = partitions[1].size();
-    std::cout << "Partition A unbalanced weight: " << count_partition_a << std::endl;
-    std::cout << "Partition B unbalanced weight: " << count_partition_b << std::endl;
-
-    while (count_partition_a > count_partition_b) {
-        auto extra_node = std::find_if(nodes.begin(), nodes.end(),
-                                        [](const auto& node){ return node.partition_label == "A" && "_" in std::to_string(node.id); });
-        if (extra_node != nodes.end()) {
-            extra_node->partition_label = "B";
-            count_partition_a--;
-            count_partition_b++;
+          partition_assignments[vertexID] = val;
+          partition_totalweights[val] += weight;
+          
         }
     }
 
-    // ADD partition balancing code here
+
+    // Step 2: Rebalance partitions in terms of weight: move over 1/2 of nodes from lighter partition
+    int lighter_partition;
+    int heavier_partition;
+    cout << "p1 total weights " << partition_totalweights[0] << "p2 total weights "<< partition_totalweights[1] << endl;
+    if(partition_totalweights[0] < partition_totalweights[1]) {
+      lighter_partition = 0;
+    } else {
+      lighter_partition = 1;
+    }
+    heavier_partition = 1-lighter_partition;
+
+    int to_move_minimum = (partition_totalweights[heavier_partition] - partition_totalweights[lighter_partition])/2;
+    cout << "tmm " << to_move_minimum << std::endl;
+    // Remove nodes from the heavier partition until it is balanced
+    for (int i=partitions[heavier_partition].size()-1; i>=0; i-=1) {
+      int vertexID = partitions[heavier_partition][i];
+      partitions[heavier_partition].pop_back();
+      partitions[lighter_partition].push_back(vertexID);
+      
+      int thisWeight = nodes[vertexID];
+            cout << "moving " << vertexID << " from " << heavier_partition << " to " << lighter_partition << " with weight " << thisWeight << endl;
+
+      
+      partition_totalweights[heavier_partition] -= thisWeight;
+      partition_totalweights[lighter_partition] += thisWeight;
+      partition_assignments[vertexID] = lighter_partition;
+
+      to_move_minimum -= thisWeight;
+      if(to_move_minimum <= 0) {
+        break;
+      }
+    } 
+    
 
 
-    std::cout << "Partition A balanced weight: " << count_partition_a << std::endl;
-    std::cout << "Partition B balanced weight: " << count_partition_b << std::endl;
+    // We can try to expand the nodes but it seems to be very slow and not worth it
+
+    // G.expandNodes();
+    // auto expandedRange = G.getExpandedRange();
+    
+
+    // // Assign expanded nodes
+    //  for(const auto& entry : nodes){
+    //     int vertexID = entry.first;
+    //     double weight = entry.second;
+    //     int exStartIndex = expandedRange[vertexID];
+        
+    //     if (vertexID < expandedStart) { // if it is not an expanded node
+    //       int val = partition_assignments[vertexID];
+          
+    //       for(int i=0; i < weight; i++) {  // if it is an expanded node
+    //         // cout << "val : " << val << "currInd : " << exStartIndex+i << " expandedRange : " << expandedRange[exStartIndex+i] << std::endl;
+    //         partitions[val].push_back(exStartIndex+i); // Step 2: Assign all extra generated vertices to the same partition as their original vertex
+    //       }
+          
+    //     }
+    //   }
+    
+    
+
+
+    // std::cout << "Partition A balanced weight: " << count_partition_a << std::endl;
+    // std::cout << "Partition B balanced weight: " << count_partition_b << std::endl;
 
     std::cout << "Initial CutSize: " << calculateCutSize(G, partitions) << std::endl;
     return partitions;
@@ -179,7 +218,8 @@ int main() {
     auto start_time = std::chrono::high_resolution_clock::now();
 
     // Define the file path and number of threads
-    const std::string filename = "/content/q2/resources/metismodels/x15y30m20q20.metis";
+    // const std::string filename = "/content/q2/resources/metismodels/x15y30m20q20.metis";
+    const std::string filename = "/content/q2/resources/metismodels/x100y200m20q20.metis";
     // const std::string filename = "/content/q2/resources/metismodels/x1000y2000m20q20.metis";
     const int numThreads = 2;  // Change the number of threads if needed
 

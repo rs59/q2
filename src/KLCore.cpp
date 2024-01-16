@@ -62,6 +62,7 @@ std::multimap<double, std::pair<int, int>> gainCalc(Graph &G, std::map<int, doub
     for (auto dValueA : dValuesA) {
         for (auto dValueB : dValuesB) {
             double gain = dValueA.second + dValueB.second - 2 * G.getEdgeWeightKL(dValueA.first, dValueB.first);
+            // std::cout << "gain " << gain << " from " << dValueA.first << " and " << dValueB.first << std::endl;
             gains.insert(std::pair<double, std::pair<int, int>>(gain, std::pair<int, int>(dValueA.first, dValueB.first)));
         }
     }
@@ -90,11 +91,11 @@ int calcMaxGain(std::vector<SwapNodes> swapNodes, double &max_gain) {
 
 // Function to print gains
 void printGain(std::multimap<double, std::pair<int, int>> gains) {
-    // std::cout << "Gains: " << std::endl;
-    // for (auto gain : gains) {
-    //   if (gain.first != 0 )
-        // std::cout << "Edge (" << gain.second.first << "," << gain.second.second << "): " << gain.first << std::endl;
-    // }
+    std::cout << "Gains: " << std::endl;
+    for (auto gain : gains) {
+      if (gain.first != 0 )
+        std::cout << "Edge (" << gain.second.first << "," << gain.second.second << "): " << gain.first << std::endl;
+    }
 }
 
 // Function to update the partition after a swap
@@ -131,10 +132,17 @@ int KL_Partitioning(Graph &G, std::vector<int> &nodesA, std::vector<int> &nodesB
     do {
         i++;
         std::vector<SwapNodes> swapNodes;
+        std::cout << "calcD " << std::endl;
         calcD(G, nodesA, dValuesA, nodesB, dValuesB);
+        std::cout << "finished calcD " << std::endl;
+        int prevPrevGain = -3000000;
+        int prevGain = -2000000;
+        int currGain = -1000000;
         // Repeat until no further improvement in gain
         while (!dValuesA.empty() && !dValuesB.empty()) {
+            // std::cout << "gainCalc " << std::endl;
             auto gains = gainCalc(G, dValuesA, dValuesB);
+            // std::cout << "finished gainCalc " << std::endl;
             auto mostGain_it = gains.rbegin();
             if (mostGain_it == gains.rend()) {
                 exit(-1);
@@ -142,7 +150,14 @@ int KL_Partitioning(Graph &G, std::vector<int> &nodesA, std::vector<int> &nodesB
             swapNodes.push_back({mostGain_it->second, mostGain_it->first});
             updateD(G, dValuesA, dValuesB, mostGain_it->second);
             // std::cout << "\tc  " << std::endl;
-            printGain(gains);
+            // prevPrevGain = prevGain;
+            // prevGain = currGain;
+            // currGain = (*gains.rend()).first;
+            // std::cout << "prevPrevgain " << prevPrevGain << "prevgain " << prevGain << "Currgain " << currGain << std::endl;
+            // if(prevGain==prevPrevGain && prevGain==currGain) {
+            //   std::cout << "repeated gains, continuing  " << std::endl;
+            //   break;
+            // }
         }
         // Find the index with the maximum cumulative gain
         int k = calcMaxGain(swapNodes, max_gain);
