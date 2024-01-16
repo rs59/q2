@@ -8,7 +8,7 @@
 #include <condition_variable>
 
 int crrnt_ctr;
-int MAX_SWAPS_PER_ITERATION = 100;
+int MAX_SWAPS_PER_ITERATION = 1000;
 
 // Function to uncoarsen a graph based on mappings and edge information
 // This function reconstructs the uncoarsened graph using mappings and edge weights.
@@ -265,6 +265,7 @@ void updateBoundaryVertices(Graph& graph, std::vector<int>& boundaryVertices, st
 //Before the refinement step, if necessary balance the partition (should iterate 0 times and break while entered the first iteration, is just to be sure)
 void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, std::vector<double>& partition_weights, std::vector<int>& boundaryVertices, std::vector<std::vector<int>> initial_partitions, float maxDeviation, double target_weight){
     int iterations = 0;
+    bool constraint = false;
     //Perform movements until is balanced, or until it iterates one time for vertex
     while(iterations < boundaryVertices.size()){
         bool balanced = true;
@@ -296,7 +297,7 @@ void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, 
         });
 
         //for each vertex in lightest partition
-        for(int i=(partitions.size()-1); i>0; i--){
+        for(int i=(partitions.size()-1); i>(partitions.size()-1); i--){
 
             if(partitions[partitionOrder[0]].empty()){
                 int node = *partitions[partitionOrder[i]].begin();
@@ -315,7 +316,7 @@ void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, 
 
                 for(int node : partitions[partitionOrder[i]]){
                     //Check all nodes of the heaviest partition not already checked
-                    if(graph.getNeighbors(node).size() == 0){
+                    if(graph.getNeighbors(node).size() == 0 || constraint){
                         //Evaluated node in heaviest partition is disconnected, swap it
                         partitions[partitionOrder[i]].erase(std::remove(partitions[partitionOrder[i]].begin(), partitions[partitionOrder[i]].end(), node), partitions[partitionOrder[i]].end());
                         partitions[partitionOrder[0]].push_back(node);
@@ -348,6 +349,9 @@ void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, 
             if(swapped){
                 break;
             }
+        }
+        if(!swapped){
+            constraint = true;
         }
         iterations++;
     }

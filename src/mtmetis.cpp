@@ -57,6 +57,7 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
 
     int assignedVerticesCtr = 0;
 
+    bool noNodeConnected = false;
     //Greedy assignment of vertices to partitions
     while(condition){
         int k = -1;
@@ -67,6 +68,7 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
 
         for(int vertex : sorted_vertices){
             k++;   //this will be used ony to update assigned vector
+
             if(assigned[k] == true){
                 //node is already assigned
                 continue;
@@ -94,10 +96,11 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
                     continue;
                 }
 
-                //If the partition is empty or if the node is completely disconnected, assign it
-                if(partitions[partitionOrder[i]].empty() || coarsedGraph.getNeighbors(vertex).size() == 0){
+                //If the partition is empty or if the node is completely disconnected or if none of the remaining nodes are connected to any partition, assign it
+                if(partitions[partitionOrder[i]].empty() || coarsedGraph.getNeighbors(vertex).size() == 0 || noNodeConnected){
                     connected = true;
                     min_weight_partition = partitionOrder[i];
+                    noNodeConnected = false;
                     break;
                 }
                 for (int node : partitions[partitionOrder[i]]) {
@@ -120,6 +123,11 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
             }
         }
 
+        if(madeAssignemt == false && useConstraint == false){
+            //All nodes in all partitions are disconnected from the remaining nodes
+            noNodeConnected = true;
+        }
+
         //check if all assigned vector elements are true
         // Check if all values in the bool vector are true
         bool allTrue = std::all_of(assigned.begin(), assigned.end(), [](bool val) { return val; });
@@ -129,10 +137,13 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
             condition = false;
         } else {
             DEBUG_STDOUT("Condition not met");
+            std::cout << "Assigned nodes " << assignedVerticesCtr << " over " << coarsedGraph.getVertices().size() << std::endl;
         }
     }
 
     int iterations = 0;
+    bool constraint = false;
+    int constraintCtr = 0;
     //Perform movements until is balanced, or until it iterates one time for vertex
     while(true && iterations < coarsedGraph.getVertices().size()){
         bool balanced = true;
@@ -160,10 +171,8 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
             return partition_weights[a] < partition_weights[b];
         });
 
-
-
         //for each vertex in lightest partition
-        for(int i=(partitions.size()-1); i>0; i--){
+        for(int i=(partitions.size()-1); i>=(partitions.size()-1); i--){
             int node;
             if(partitions[partitionOrder[0]].empty()){
                 if(!partitions[partitionOrder[i]].empty()){
@@ -175,8 +184,8 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
                 //move neighbor to partition
                 partitions[partitionOrder[i]].erase(std::remove(partitions[partitionOrder[i]].begin(), partitions[partitionOrder[i]].end(), node), partitions[partitionOrder[i]].end());
                 partitions[partitionOrder[0]].push_back(node);
-                partition_weights[partitionOrder[i]] -= graph.getVertexWeight(node);
-                partition_weights[partitionOrder[0]] += graph.getVertexWeight(node);
+                partition_weights[partitionOrder[i]] -= coarsedGraph.getVertexWeight(node);
+                partition_weights[partitionOrder[0]] += coarsedGraph.getVertexWeight(node);
                 swapped = true;
                 break;
             }
@@ -186,13 +195,14 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
 
                 for(int node : partitions[partitionOrder[i]]){
                     //Check all nodes of the heaviest partition not already checked
-                    if(graph.getNeighbors(node).size() == 0){
+                    if(coarsedGraph.getNeighbors(node).size() == 0 || constraint){
                         //Evaluated node in heaviest partition is disconnected, swap it
                         partitions[partitionOrder[i]].erase(std::remove(partitions[partitionOrder[i]].begin(), partitions[partitionOrder[i]].end(), node), partitions[partitionOrder[i]].end());
                         partitions[partitionOrder[0]].push_back(node);
-                        partition_weights[partitionOrder[i]] -= graph.getVertexWeight(node);
-                        partition_weights[partitionOrder[0]] += graph.getVertexWeight(node);
+                        partition_weights[partitionOrder[i]] -= coarsedGraph.getVertexWeight(node);
+                        partition_weights[partitionOrder[0]] += coarsedGraph.getVertexWeight(node);
                         swapped = true;
+                        constraint = false;
                         break;
                     }
 
@@ -218,6 +228,10 @@ std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npart
             if(swapped){
                 break;
             }
+        }
+        if(!swapped){
+            constraint = true;
+            constraintCtr++;
         }
         iterations++;
     }
@@ -288,7 +302,7 @@ void WriteOutputToFile(const std::vector<std::vector<int>>& partitions, string o
         std::cout << "Partition " << partitionIndex << ": ";
         int sum = 0;
         for (const auto& vertex : partition) {
-            std::cout << vertex << " ";
+            //std::cout << vertex << " ";
             sum += graph.getVertexWeight(vertex);
         }
         std::cout << std::endl;
