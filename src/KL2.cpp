@@ -81,11 +81,17 @@ std::vector<std::vector<int>> makeNodePartion(const Graph& G, const int& numPart
 
 
 // Function to create initial node partitions
-std::vector<std::vector<int>> makeNodePartion2(const Graph& G, const int& numPartitions){
+std::vector<std::vector<int>> makeNodePartion2(Graph& G, const int& numPartitions){
+    srand(time(NULL));
     auto nodes = G.getVertices();
-    auto expandedRange = G.getExpandedRange();
     std::vector<std::vector<int>> partitions(numPartitions);
     int expandedStart = G.getExpandedStart();
+
+    // G.print();
+    G.expandNodes();
+    // G.print();
+    
+    auto expandedRange = G.getExpandedRange();
     
     // Step 1: Randomly assign each original vertex to partition A or B
     for(const auto& entry : nodes){
@@ -93,44 +99,40 @@ std::vector<std::vector<int>> makeNodePartion2(const Graph& G, const int& numPar
         double weight = entry.second;
         int exStartIndex = expandedRange[vertexID];
         
+        // std::cout << " id: " << vertexID << " weight: " << weight << " exStartIndex: " << exStartIndex << std::endl;
+
         int val = rand() % 2 == 0;
-        if (vertexID < expandedStart) {
+        if (vertexID < expandedStart) { // if it is not an expanded node
           partitions[val].push_back(entry.first); // put node in random partition
-          for(int i; i < weight; i++) {
+          for(int i=0; i < weight; i++) {  // if it is an expanded node
+            // cout << "expanded range: " << expandedRange[vertexID];
             partitions[val].push_back(exStartIndex+i); // Step 2: Assign all extra generated vertices to the same partition as their original vertex
           }
         }
     }
     
     
-    // // Step 3: Assign about 1/2 of the extra nodes from the largest partition to the partition with fewer nodes
-    // int count_partition_a = std::count_if(nodes.begin(), nodes.end(), [](const auto& node){ return node.partition_label == "A"; });
-    // int count_partition_b = std::count_if(nodes.begin(), nodes.end(), [](const auto& node){ return node.partition_label == "B"; });
-    // std::cout << "Partition A unbalanced weight: " << count_partition_a << std::endl;
-    // std::cout << "Partition B unbalanced weight: " << count_partition_b << std::endl;
+    // Step 3: Assign about 1/2 of the extra nodes from the largest partition to the partition with fewer nodes
+    int count_partition_a = partitions[0].size();
+    int count_partition_b = partitions[1].size();
+    std::cout << "Partition A unbalanced weight: " << count_partition_a << std::endl;
+    std::cout << "Partition B unbalanced weight: " << count_partition_b << std::endl;
 
-    // while (count_partition_a > count_partition_b) {
-    //     auto extra_node = std::find_if(nodes.begin(), nodes.end(),
-    //                                     [](const auto& node){ return node.partition_label == "A" && "_" in std::to_string(node.id); });
-    //     if (extra_node != nodes.end()) {
-    //         extra_node->partition_label = "B";
-    //         count_partition_a--;
-    //         count_partition_b++;
-    //     }
-    // }
+    while (count_partition_a > count_partition_b) {
+        auto extra_node = std::find_if(nodes.begin(), nodes.end(),
+                                        [](const auto& node){ return node.partition_label == "A" && "_" in std::to_string(node.id); });
+        if (extra_node != nodes.end()) {
+            extra_node->partition_label = "B";
+            count_partition_a--;
+            count_partition_b++;
+        }
+    }
 
-    // while (count_partition_b > count_partition_a) {
-    //     auto extra_node = std::find_if(nodes.begin(), nodes.end(),
-    //                                     [](const auto& node){ return node.partition_label == "B" && "_" in std::to_string(node.id); });
-    //     if (extra_node != nodes.end()) {
-    //         extra_node->partition_label = "A";
-    //         count_partition_a++;
-    //         count_partition_b--;
-    //     }
-    // }
+    // ADD partition balancing code here
 
-    // std::cout << "Partition A balanced weight: " << count_partition_a << std::endl;
-    // std::cout << "Partition B balanced weight: " << count_partition_b << std::endl;
+
+    std::cout << "Partition A balanced weight: " << count_partition_a << std::endl;
+    std::cout << "Partition B balanced weight: " << count_partition_b << std::endl;
 
     std::cout << "Initial CutSize: " << calculateCutSize(G, partitions) << std::endl;
     return partitions;
@@ -179,7 +181,7 @@ int main() {
     // Define the file path and number of threads
     const std::string filename = "/content/q2/resources/metismodels/x15y30m20q20.metis";
     // const std::string filename = "/content/q2/resources/metismodels/x1000y2000m20q20.metis";
-    const int numThreads = 1;  // Change the number of threads if needed
+    const int numThreads = 2;  // Change the number of threads if needed
 
     // Read the graph from the file
     Graph graph = metisRead(filename, numThreads);

@@ -90,11 +90,11 @@ int calcMaxGain(std::vector<SwapNodes> swapNodes, double &max_gain) {
 
 // Function to print gains
 void printGain(std::multimap<double, std::pair<int, int>> gains) {
-    std::cout << "Gains: " << std::endl;
-    for (auto gain : gains) {
-      if (gain.first != 0 )
-        std::cout << "Edge (" << gain.second.first << "," << gain.second.second << "): " << gain.first << std::endl;
-    }
+    // std::cout << "Gains: " << std::endl;
+    // for (auto gain : gains) {
+    //   if (gain.first != 0 )
+        // std::cout << "Edge (" << gain.second.first << "," << gain.second.second << "): " << gain.first << std::endl;
+    // }
 }
 
 // Function to update the partition after a swap
@@ -141,7 +141,7 @@ int KL_Partitioning(Graph &G, std::vector<int> &nodesA, std::vector<int> &nodesB
             }
             swapNodes.push_back({mostGain_it->second, mostGain_it->first});
             updateD(G, dValuesA, dValuesB, mostGain_it->second);
-            std::cout << "\tc  " << std::endl;
+            // std::cout << "\tc  " << std::endl;
             printGain(gains);
         }
         // Find the index with the maximum cumulative gain

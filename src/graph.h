@@ -28,6 +28,7 @@ public:
 
         vertices = other.vertices;
         adjacencyList = other.adjacencyList;
+        expandedRange = other.expandedRange;
         edgeWeights = other.edgeWeights;
 
         for(std::unordered_map<int, int> coarser_to_finer_mapping : other.coarserToFinerMappings){
@@ -52,6 +53,7 @@ public:
 
         vertices = other.vertices;
         adjacencyList = other.adjacencyList;
+        expandedRange = other.expandedRange;
         edgeWeights = other.edgeWeights;
 
         for(std::unordered_map<int, int> coarser_to_finer_mapping : other.coarserToFinerMappings){
@@ -84,16 +86,49 @@ public:
         int thisID = ORIGINAL_VERTICES_COUNT;
         vertices[thisID] = weight;
         adjacencyList[thisID] = std::vector<int>();
-        // adjacencyList[vertexID].push_back(parentVertexID);
-
-        // Update ORIGINAL_VERTICES_COUNT
-        ORIGINAL_VERTICES_COUNT = std::count_if(vertices.begin(), vertices.end(),
-            [](const std::pair<int, double>& entry) { return entry.first >= 0; });
     }
 
     int getExpandedStart() const {
-      return ORIGINAL_VERTICES_COUNT - 1;
+      return ORIGINAL_VERTICES_COUNT;
     }
+
+    // Expand all nodes: pass their weights out to their children
+    void expandNodes() {
+      int startingPosition = getExpandedStart() + 1;
+      // std::cout << "starting pos: " << startingPosition << std::endl;
+      auto vertices_unmod = vertices;
+      for(const auto& entry : vertices_unmod){ // loop through all nodes
+        int parentNodeID = entry.first;
+        double weight = entry.second;
+        // std::cout << "ID: " << parentNodeID << "weight: " << weight << std::endl;
+        if(weight >= 1) {
+          expandedRange[parentNodeID]=startingPosition;
+          for(int i=0; i < weight; i++) {  // if it is an expanded node
+            vertices[startingPosition+i]=1; // Step 2: Assign all extra generated vertices to the same partition as their original vertex
+            // std::cout << "new node id: " << startingPosition+i << std::endl;
+            expandedRange[startingPosition+i]=parentNodeID;
+            addEdge((i == 0) ? parentNodeID: startingPosition+i-1, startingPosition+i, static_cast<double>(40));
+          }
+          startingPosition += weight;
+        } else {
+          expandedRange[parentNodeID]=-1; // mark non-expanded nodes by -1
+        }
+      }
+    }
+    
+    // Remove all nodes: pass their weights out to their children
+    void collapseNodes() {
+      
+      for(const auto& entry : vertices){ // loop through all nodes
+        int expandedNodeID = entry.first;
+        if(expandedNodeID>=getExpandedStart()) { // then it is an expanded node and can be deleted
+          vertices.erase(expandedNodeID);
+          adjacencyList.erase(expandedNodeID);
+        }
+      }
+
+    }
+
 
     //Used to make a temp graph gain the mapping informations for uncoarsening thte new level
     void copyCoarseningData(Graph& other){
@@ -259,6 +294,16 @@ public:
                 std::cout << neighbor << " ";
             }
             std::cout << std::endl;
+        }
+
+        
+        std::cout << "ExpandedRange:" << std::endl;
+        for (const auto& entry : expandedRange) {
+            const auto& key = entry.first;
+            int expandedRangeVal = entry.second;
+
+            std::cout << "Vertex: " << key << ", ExpandedRange: " << expandedRangeVal << std::endl;
+
         }
     }
 
