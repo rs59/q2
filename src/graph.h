@@ -70,13 +70,14 @@ public:
     }
 
     // Function to add a vertex to the graph with its weight
-    void addVertex(int vertexID, double weight = 1) {
+    void addVertex(int vertexID, double weight = 1, int initial = 0) {
         vertices[vertexID] = weight;
         adjacencyList[vertexID] = std::vector<int>();
 
         // Update ORIGINAL_VERTICES_COUNT
-        ORIGINAL_VERTICES_COUNT = std::count_if(vertices.begin(), vertices.end(),
-            [](const std::pair<int, double>& entry) { return entry.first >= 0; });
+        if(!initial)
+            ORIGINAL_VERTICES_COUNT = std::count_if(vertices.begin(), vertices.end(),
+                [](const std::pair<int, double>& entry) { return entry.first >= 0; });
 
     }
 
@@ -168,6 +169,10 @@ public:
     // Function to get the weight of a vertex
     double getVertexWeight(int vertexID) {
         return vertices[vertexID];
+    }
+
+    void setEdgeWeight(const int& vertexID,const double& weight){
+        vertices[vertexID] = weight;
     }
 
     // Function to get the weight of an edge
