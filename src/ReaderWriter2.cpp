@@ -5,7 +5,7 @@
 #include <thread>
 #include <mutex>
 #include <shared_mutex>
-#include <condition_variable>
+#include <map>
 #include "graph.h"
 
 //Boolean compiler definitions
@@ -31,9 +31,8 @@ struct node{
 
 // Struct to compress the sincronizartion variables
 struct mysync {
-    std::mutex creationMtx, barrierMtx, writingMtx, sectionMtx;
+    std::mutex creationMtx, writingMtx, sectionMtx;
     std::shared_mutex eofMtx;
-    std::condition_variable barrier_cv;
 };
 
 // Global variables for sincronization
@@ -66,11 +65,13 @@ std::ifstream& gotoLine(std::ifstream& file, unsigned int num){
     return file;
 }
 
-// Function to insert all edges read into the graph data class
+// Function to insert all Nodes weight and all edges read into the graph data class
 void addToGraph(Graph& graph, const std::vector<node>& nodes, std::mutex& writeMtx){
     std::unique_lock<std::mutex> lock(writeMtx);
+    // Node Loop
     for(const auto& node: nodes){
         graph.setEdgeWeight(node.id, node.weight);
+        // Edges connected to the node loop
         for(const auto& nNode: node.neighbours){
             graph.addEdge(node.id, nNode.neighbourNode, nNode.weight);
         }
@@ -100,24 +101,6 @@ void readLines(std::ifstream& file, Graph& graph, const int& startId, const unsi
         nodes.emplace_back(startId+i, nodeWeight, neighbours);
     }
     addToGraph(graph, nodes, writeMtx);
-}
-
-// Function to insert the value read to the Graph data-class
-void addVerticesToGraph(Graph& graph, const std::vector<node>& nodes, std::mutex& writeMtx){
-    std::unique_lock<std::mutex> lock(writeMtx);
-    for(const auto& node: nodes){
-        graph.addVertex(node.id, node.weight);
-    }
-}
-
-// Function to insert all edges read into the graph data class
-void addEdgesToGraph(Graph& graph, const std::vector<node>& nodes, std::mutex& writeMtx){
-    std::unique_lock<std::mutex> lock(writeMtx);
-    for(const auto& node: nodes){
-        for(const auto& nNode: node.neighbours){
-            graph.addEdge(node.id, nNode.neighbourNode, nNode.weight);
-        }
-    }
 }
 
 // Thread safe read and update the section variable
@@ -203,6 +186,7 @@ Graph metisRead(const std::string& filename, const int& numThreads){
     // Calculate the lines per thread to read
     unsigned int numLines = getTotLines(filename);
     DEBUG_STDOUT("Number of Lines: "+std::to_string(numLines));
+    // Initialization of the nodes
     for(unsigned int i = 1; i <= numLines; i++){
         graph.addVertex(i, 1);
         //DEBUG_STDOUT("Added vertex :" + std::to_string(i));
@@ -229,8 +213,20 @@ Graph metisRead(const std::string& filename, const int& numThreads){
     return graph;
 }
 
+std::map<int,int> partitionsToMap(const std::vector<std::vector<int>>& partitions){
+    std::map<int,int> mPartitions;
+    for(unsigned int i = 0; i < partitions.size(); i++){
+        for(const auto& node: partitions[i]){
+            mPartitions.emplace(node, i);
+        }
+    }
+    return mPartitions;
+}
+
 // Function to write graph partitions to a file
 void writeToFile(const std::vector<std::vector<int>>& partitions, const std::string& filename) {
+    // Convert the partitions to an ordered map
+    auto mPartitions = partitionsToMap(partitions);
     // Open the file
     std::ofstream of(filename);
 
@@ -239,15 +235,20 @@ void writeToFile(const std::vector<std::vector<int>>& partitions, const std::str
         std::cerr << "Error in Opening the file in output"<< std::endl;
         exit(-1);
     }
-
+    // Metadata: number Of nodes and number of partitions
+    of << mPartitions.size()<< " " << partitions.size();
     // Write partitions to the file
-    for (const auto& partition : partitions) {
-        for (const auto& node : partition) {
-            of << node << ' ';
+    int i = 1;
+    for (const auto& line : mPartitions) {
+        // Check the node is present
+        if(i != line.first){
+            std::cerr << "Missing node"<< std::endl;
+            exit(-1);
         }
-        of << std::endl; 
+        // Write on File
+        of << std::endl << line.second;
+        i++;
     }
-
     // Close the file
     of.close();
 }

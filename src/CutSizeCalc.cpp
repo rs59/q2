@@ -22,7 +22,7 @@ double calculateCutSize(const Graph& G, const std::vector<std::vector<int>>& par
         }
     return cutSize / 2;  // Dividing by 2 as each edge is counted twice
 }
-
+/*
 std::vector<int> splitLine(std::string line){
     int temp;
     std::stringstream sLine(line);
@@ -31,16 +31,29 @@ std::vector<int> splitLine(std::string line){
         partition.push_back(temp);
     }
     return partition;
-}
+}*/
 
-std::vector<std::vector<int>> readEndFile(std::string filename){
+std::vector<std::vector<int>> readEndFile(std::string filename, int&  numNodes){
     // Create new reference to file
     std::ifstream file(filename);
     std::vector<std::vector<int>> partitions;
     if (file.is_open()) {
-        std::string line;
-        while(std::getline(file, line)){
-            partitions.push_back(splitLine(line));
+        if(file >> numNodes){
+            int numPartitions;
+            file >> numPartitions;
+            for(int i = 0; i< numPartitions; i++){
+                partitions.push_back(std::vector<int>());
+            }
+            int partitionIndex;
+            int i = 1;
+            while(file >> partitionIndex){
+                partitions[partitionIndex].push_back(i);
+                i++;
+            }
+        }else{
+        DEBUG_STDOUT("Number of nodes not read");
+        std::cerr << "Error: Could not read the File " << std::endl;
+        exit(-1);
         }
     }
     else{
@@ -66,9 +79,28 @@ int main(int argc, char* argv[]){
         std::cerr << "Usage: " << argv[0] << " input-filename output-filename numThreads" << std::endl;
         return 1;
     }
-    
+    DEBUG_STDOUT("Start Reading Input");
     Graph graph = metisRead(inputFilename, numThreads);
-    auto partitions = readEndFile(outputFilename);
+    DEBUG_STDOUT("Finished Reading");
+    int numNodes;
+    DEBUG_STDOUT("Started Reading output");
+    auto partitions = readEndFile(outputFilename, numNodes);
+    DEBUG_STDOUT("Finished Reading output");
+    if(numNodes != graph.numVertices()){
+        DEBUG_STDOUT("Inconguent Number of nodes ");
+        std::cerr << "Inconguent Number of nodes " << std::endl;
+        exit(-1);
+    }
+    // // Display the generated vectors
+    // for (const auto& part : partitions) {
+    //     std::cout << "Vector: ";
+    //     for (const int& node : part) {
+    //         std::cout << node << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
+    DEBUG_STDOUT("Started Calculating Cutsize");
     double cutSize = calculateCutSize(graph, partitions);
+    DEBUG_STDOUT("Finished Calculating Cutsize");
     std::cout << "Cutsize: " << cutSize << std::endl;
 }
