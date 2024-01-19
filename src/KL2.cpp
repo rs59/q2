@@ -12,7 +12,7 @@
 
 #include <iostream>
 #include "KLCore.cpp"
-//#include "Reader.cpp"
+// #include "ReaderWriter2.cpp"
 #include <chrono>
 #define NPART 2
 
@@ -147,8 +147,10 @@ std::vector<std::vector<int>> makeNodePartion2(Graph& G, const int& numPartition
 
 
     // We can try to expand the nodes but it seems to be very slow and not worth it
+    G.setOriginalVertices(G.size());
+    std::cout << G.size() << " VERTICES IN GRAPH" << std::endl;
 
-    // G.expandNodes();
+    //                  G.expandNodes();
     // auto expandedRange = G.getExpandedRange();
     
 
@@ -214,36 +216,37 @@ std::vector<std::vector<int>> multipartitionKL(Graph& G, const int& numPartition
     return partitions;
 }
 
-// Main function
-/*int main() {
-    // Start the clock
-    auto start_time = std::chrono::high_resolution_clock::now();
+// // Main function
+// int main() {
+//     // Start the clock
+//     auto start_time = std::chrono::high_resolution_clock::now();
 
-    // Define the file path and number of threads
-    // const std::string filename = "/content/q2/resources/metismodels/x15y30m20q20.metis";
-    const std::string filename = "/content/q2/resources/metismodels/x100y200m20q20.metis";
-    // const std::string filename = "/content/q2/resources/metismodels/x1000y2000m20q20.metis";
-    const int numThreads = 2;  // Change the number of threads if needed
+//     // Define the file path and number of threads
+//     // const std::string filename = "/content/q2/resources/metismodels/x15y30m20q20.metis";
+//     const std::string filename = "./resources/metismodels/x15y30m20q20.metis";
+//     // const std::string filename = "/content/q2/resources/metismodels/x1000y2000m20q20.metis";
+//     const int numThreads = 2;  // Change the number of threads if needed
 
-    // Read the graph from the file
-    Graph graph = metisRead(filename, numThreads);
+//     // Read the graph from the file
+//     Graph graph = metisRead(filename, numThreads);
+//     graph.print();
 
-    // Call multi-level KL partitioning
-    auto optPartitions = multipartitionKL(graph, NPART);
+//     // Call multi-level KL partitioning
+//     auto optPartitions = multipartitionKL(graph, NPART);
 
-    // Print the final partitions and some statistics
-    printPartitions(optPartitions, graph.getVertices());
+//     // Print the final partitions and some statistics
+//     printPartitions(optPartitions, graph.getVertices());
 
-    // Stop the clock
-    auto end_time = std::chrono::high_resolution_clock::now();
-    // Calculate the duration
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-    // Convert the duration to a double value in seconds
-    double seconds = duration.count() / 1e6;
-    // Print the execution time
-    std::cout << "Execution time: " << seconds << " seconds" << std::endl;
-    // Print the final cut size
-    std::cout << "Final CutSize: " << calculateCutSize(graph, optPartitions);
+//     // Stop the clock
+//     auto end_time = std::chrono::high_resolution_clock::now();
+//     // Calculate the duration
+//     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+//     // Convert the duration to a double value in seconds
+//     double seconds = duration.count() / 1e6;
+//     // Print the execution time
+//     std::cout << "Execution time: " << seconds << " seconds" << std::endl;
+//     // Print the final cut size
+//     std::cout << "Final CutSize: " << calculateCutSize(graph, optPartitions);
 
-    return 0;
-}*/
+//     return 0;
+// }

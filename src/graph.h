@@ -70,15 +70,15 @@ public:
     }
 
     // Function to add a vertex to the graph with its weight
-    void addVertex(int vertexID, double weight = 1, int initial = 0) {
+    void addVertex(int vertexID, double weight = 1) {
         vertices[vertexID] = weight;
         adjacencyList[vertexID] = std::vector<int>();
 
-        // Update ORIGINAL_VERTICES_COUNT
-        if(!initial)
-            ORIGINAL_VERTICES_COUNT = std::count_if(vertices.begin(), vertices.end(),
-                [](const std::pair<int, double>& entry) { return entry.first >= 0; });
+    }
 
+    void setOriginalVertices(int originalVertices) {
+        // Update ORIGINAL_VERTICES_COUNT
+        ORIGINAL_VERTICES_COUNT = originalVertices;
     }
 
     
