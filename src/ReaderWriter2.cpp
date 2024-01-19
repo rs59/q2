@@ -239,6 +239,7 @@ void writeToFile(const std::vector<std::vector<int>>& partitions, const std::str
         std::cerr << "Error in Opening the file in output"<< std::endl;
         exit(-1);
     }
+    std::cout << "WRITING TO FILE" << std::endl;
 
     // Write partitions to the file
     for (const auto& partition : partitions) {

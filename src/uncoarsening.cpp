@@ -323,6 +323,7 @@ void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, 
                         partition_weights[partitionOrder[i]] -= graph.getVertexWeight(node);
                         partition_weights[partitionOrder[0]] += graph.getVertexWeight(node);
                         swapped = true;
+                        // constraint = false;
                         break;
                     }
 
