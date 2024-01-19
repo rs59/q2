@@ -295,22 +295,22 @@ std::vector<int> findBoundaryVertices(Graph& graph, std::vector<std::vector<int>
     return boundaryVertices;
 }
 
-// void WriteOutputToFile(const std::vector<std::vector<int>>& partitions, string outputfile){
-//     //TO DO
-//     int partitionIndex = 0;
-//     for (const auto& partition : partitions) {
-//         std::cout << "Partition " << partitionIndex << ": ";
-//         int sum = 0;
-//         for (const auto& vertex : partition) {
-//             //std::cout << vertex << " ";
-//             sum += graph.getVertexWeight(vertex);
-//         }
-//         std::cout << std::endl;
-//         std::cout << "Total weight: " << sum << std::endl;
-//         std::cout << std::endl;
-//         partitionIndex++;
-//     }
-// }
+void PrintDetails(const std::vector<std::vector<int>>& partitions, string outputfile){
+    //TO DO
+    int partitionIndex = 0;
+    for (const auto& partition : partitions) {
+        std::cout << "Partition " << partitionIndex << ": ";
+        int sum = 0;
+        for (const auto& vertex : partition) {
+            //std::cout << vertex << " ";
+            sum += graph.getVertexWeight(vertex);
+        }
+        std::cout << std::endl;
+        std::cout << "Total weight: " << sum << std::endl;
+        std::cout << std::endl;
+        partitionIndex++;
+    }
+}
 
 
 void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, string inputfile, string outputfile){
@@ -362,6 +362,7 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     seconds = duration.count() / 1e6;
     std::cout << "Uncoarsening time: " << seconds << " seconds" << std::endl;
     writeToFile(uncoarsened_partitions, outputfile);
+    PrintDetails(uncoarsened_partitions, outputfile);
 }
 
 
