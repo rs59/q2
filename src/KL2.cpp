@@ -12,9 +12,11 @@
 
 #include <iostream>
 #include "KLCore.cpp"
-#include "Reader.cpp"
+//#include "Reader.cpp"
 #include <chrono>
 #define NPART 2
+
+using namespace std;
 
 // Structure to represent a partition
 struct Partition {
@@ -213,7 +215,7 @@ std::vector<std::vector<int>> multipartitionKL(Graph& G, const int& numPartition
 }
 
 // Main function
-int main() {
+/*int main() {
     // Start the clock
     auto start_time = std::chrono::high_resolution_clock::now();
 
@@ -244,4 +246,4 @@ int main() {
     std::cout << "Final CutSize: " << calculateCutSize(graph, optPartitions);
 
     return 0;
-}
+}*/
