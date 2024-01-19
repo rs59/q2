@@ -6,7 +6,7 @@
 #include <mutex>
 #include <condition_variable>
 
-int coarsestGraphSize = 1000;
+int coarsestGraphSize = 50;
 
 int current_ctr;
 

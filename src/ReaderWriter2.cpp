@@ -204,7 +204,7 @@ Graph metisRead(const std::string& filename, const int& numThreads){
     unsigned int numLines = getTotLines(filename);
     DEBUG_STDOUT("Number of Lines: "+std::to_string(numLines));
     for(unsigned int i = 1; i <= numLines; i++){
-        graph.addVertex(i, 1, 1);
+        graph.addVertex(i, 1);
         //DEBUG_STDOUT("Added vertex :" + std::to_string(i));
     }
     DEBUG_STDOUT("Added nodes");

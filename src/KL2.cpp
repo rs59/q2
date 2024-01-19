@@ -12,9 +12,11 @@
 
 #include <iostream>
 #include "KLCore.cpp"
-#include "Reader.cpp"
+// #include "ReaderWriter2.cpp"
 #include <chrono>
 #define NPART 2
+
+using namespace std;
 
 // Structure to represent a partition
 struct Partition {
@@ -46,8 +48,9 @@ void fillPartition(Partition& partition, int& alreadyIns, const double& max_weig
 
 // Function to print partitions
 void printPartitions(const std::vector<std::vector<int>>& partitions, std::unordered_map<int, double> vertices){
-    int weight = 0;
+    int weight;
     for(int i = 0; i < partitions.size(); i++){
+        weight = 0;
         std::cout << "Partition " << i + 1 << ": " << partitions[i].size() << std::endl;
         for(const auto& node: partitions[i]){
             std::cout << node << " ";
@@ -123,30 +126,37 @@ std::vector<std::vector<int>> makeNodePartion2(Graph& G, const int& numPartition
     int to_move_minimum = (partition_totalweights[heavier_partition] - partition_totalweights[lighter_partition])/2;
     cout << "tmm " << to_move_minimum << std::endl;
     // Remove nodes from the heavier partition until it is balanced
-    for (int i=partitions[heavier_partition].size()-1; i>=0; i-=1) {
-      int vertexID = partitions[heavier_partition][i];
-      partitions[heavier_partition].pop_back();
-      partitions[lighter_partition].push_back(vertexID);
-      
-      int thisWeight = nodes[vertexID];
-            cout << "moving " << vertexID << " from " << heavier_partition << " to " << lighter_partition << " with weight " << thisWeight << endl;
+    int orig_size = partitions[heavier_partition].size();
+    for (int i = orig_size - 1; i >= 0; i -= 1)
+    {
+        int vertexID = partitions[heavier_partition][i];
 
-      
-      partition_totalweights[heavier_partition] -= thisWeight;
-      partition_totalweights[lighter_partition] += thisWeight;
-      partition_assignments[vertexID] = lighter_partition;
+        int thisWeight = nodes[vertexID];
+        to_move_minimum -= thisWeight;
+        if (to_move_minimum <= 0)
+        {
+            break;
+        }
 
-      to_move_minimum -= thisWeight;
-      if(to_move_minimum <= 0) {
-        break;
-      }
-    } 
-    
+        partitions[heavier_partition].pop_back();
+        partitions[lighter_partition].push_back(vertexID);
 
+        cout << "moving " << vertexID << " from " << heavier_partition << " to " << lighter_partition << " with weight " << thisWeight << endl;
+        cout << "heavier partition " << partitions[heavier_partition].size() << " " << heavier_partition << " and " << partitions[lighter_partition].size() << " lighter partition " << lighter_partition << endl;
+
+        partition_totalweights[heavier_partition] -= thisWeight;
+        partition_totalweights[lighter_partition] += thisWeight;
+        std::cout << "lighter p: " << partition_totalweights[lighter_partition] << "heavier p: " << partition_totalweights[heavier_partition] << std::endl;
+        partition_assignments[vertexID] = lighter_partition;
+
+       
+    }
 
     // We can try to expand the nodes but it seems to be very slow and not worth it
+    G.setOriginalVertices(G.size());
+    std::cout << G.size() << " VERTICES IN GRAPH" << std::endl;
 
-    // G.expandNodes();
+    //                  G.expandNodes();
     // auto expandedRange = G.getExpandedRange();
     
 
@@ -212,36 +222,37 @@ std::vector<std::vector<int>> multipartitionKL(Graph& G, const int& numPartition
     return partitions;
 }
 
-// Main function
-int main() {
-    // Start the clock
-    auto start_time = std::chrono::high_resolution_clock::now();
+// // Main function
+// int main() {
+//     // Start the clock
+//     auto start_time = std::chrono::high_resolution_clock::now();
 
-    // Define the file path and number of threads
-    // const std::string filename = "/content/q2/resources/metismodels/x15y30m20q20.metis";
-    const std::string filename = "/content/q2/resources/metismodels/x100y200m20q20.metis";
-    // const std::string filename = "/content/q2/resources/metismodels/x1000y2000m20q20.metis";
-    const int numThreads = 2;  // Change the number of threads if needed
+//     // Define the file path and number of threads
+//     // const std::string filename = "/content/q2/resources/metismodels/x15y30m20q20.metis";
+//     const std::string filename = "./resources/metismodels/x15y30m20q20.metis";
+//     // const std::string filename = "/content/q2/resources/metismodels/x1000y2000m20q20.metis";
+//     const int numThreads = 2;  // Change the number of threads if needed
 
-    // Read the graph from the file
-    Graph graph = metisRead(filename, numThreads);
+//     // Read the graph from the file
+//     Graph graph = metisRead(filename, numThreads);
+//     graph.print();
 
-    // Call multi-level KL partitioning
-    auto optPartitions = multipartitionKL(graph, NPART);
+//     // Call multi-level KL partitioning
+//     auto optPartitions = multipartitionKL(graph, NPART);
 
-    // Print the final partitions and some statistics
-    printPartitions(optPartitions, graph.getVertices());
+//     // Print the final partitions and some statistics
+//     printPartitions(optPartitions, graph.getVertices());
 
-    // Stop the clock
-    auto end_time = std::chrono::high_resolution_clock::now();
-    // Calculate the duration
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-    // Convert the duration to a double value in seconds
-    double seconds = duration.count() / 1e6;
-    // Print the execution time
-    std::cout << "Execution time: " << seconds << " seconds" << std::endl;
-    // Print the final cut size
-    std::cout << "Final CutSize: " << calculateCutSize(graph, optPartitions);
+//     // Stop the clock
+//     auto end_time = std::chrono::high_resolution_clock::now();
+//     // Calculate the duration
+//     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+//     // Convert the duration to a double value in seconds
+//     double seconds = duration.count() / 1e6;
+//     // Print the execution time
+//     std::cout << "Execution time: " << seconds << " seconds" << std::endl;
+//     // Print the final cut size
+//     std::cout << "Final CutSize: " << calculateCutSize(graph, optPartitions);
 
-    return 0;
-}
+//     return 0;
+// }
