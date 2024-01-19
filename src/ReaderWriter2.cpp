@@ -236,7 +236,8 @@ void writeToFile(const std::vector<std::vector<int>>& partitions, const std::str
         exit(-1);
     }
     // Metadata: number Of nodes and number of partitions
-    of << mPartitions.size()<< " " << partitions.size();
+    of << mPartitions.size()<< " " << partitions.size();    std::cout << "WRITING TO FILE" << std::endl;
+
     // Write partitions to the file
     int i = 1;
     for (const auto& line : mPartitions) {
