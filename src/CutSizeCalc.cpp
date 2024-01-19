@@ -63,6 +63,18 @@ std::vector<std::vector<int>> readEndFile(std::string filename, int&  numNodes){
     return partitions;
 }
 
+std::vector<double> partitonsWeight(Graph& G, std::vector<std::vector<int>>& partitions){
+    std::vector<double> pWeights(partitions.size());
+    
+    for(unsigned int i = 0; i< partitions.size(); i++){
+        pWeights[i] = 0.0;
+        for(const auto& node: partitions[i]){
+            pWeights[i] += G.getVertexWeight(node);
+        }
+    }
+    return pWeights;
+}
+
 
 int main(int argc, char* argv[]){
 
@@ -99,6 +111,11 @@ int main(int argc, char* argv[]){
     //     }
     //     std::cout << std::endl;
     // }
+    auto pWeights = partitonsWeight(graph, partitions);
+    for(unsigned int i = 0;i< pWeights.size(); i++){
+        std::cout << "Partition " << i << " weight :" << pWeights[i] << std::endl;
+    }
+
     DEBUG_STDOUT("Started Calculating Cutsize");
     double cutSize = calculateCutSize(graph, partitions);
     DEBUG_STDOUT("Finished Calculating Cutsize");
