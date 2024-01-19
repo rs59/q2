@@ -48,8 +48,9 @@ void fillPartition(Partition& partition, int& alreadyIns, const double& max_weig
 
 // Function to print partitions
 void printPartitions(const std::vector<std::vector<int>>& partitions, std::unordered_map<int, double> vertices){
-    int weight = 0;
+    int weight;
     for(int i = 0; i < partitions.size(); i++){
+        weight = 0;
         std::cout << "Partition " << i + 1 << ": " << partitions[i].size() << std::endl;
         for(const auto& node: partitions[i]){
             std::cout << node << " ";
@@ -125,26 +126,31 @@ std::vector<std::vector<int>> makeNodePartion2(Graph& G, const int& numPartition
     int to_move_minimum = (partition_totalweights[heavier_partition] - partition_totalweights[lighter_partition])/2;
     cout << "tmm " << to_move_minimum << std::endl;
     // Remove nodes from the heavier partition until it is balanced
-    for (int i=partitions[heavier_partition].size()-1; i>=0; i-=1) {
-      int vertexID = partitions[heavier_partition][i];
-      partitions[heavier_partition].pop_back();
-      partitions[lighter_partition].push_back(vertexID);
-      
-      int thisWeight = nodes[vertexID];
-            cout << "moving " << vertexID << " from " << heavier_partition << " to " << lighter_partition << " with weight " << thisWeight << endl;
+    int orig_size = partitions[heavier_partition].size();
+    for (int i = orig_size - 1; i >= 0; i -= 1)
+    {
+        int vertexID = partitions[heavier_partition][i];
 
-      
-      partition_totalweights[heavier_partition] -= thisWeight;
-      partition_totalweights[lighter_partition] += thisWeight;
-      partition_assignments[vertexID] = lighter_partition;
+        int thisWeight = nodes[vertexID];
+        to_move_minimum -= thisWeight;
+        if (to_move_minimum <= 0)
+        {
+            break;
+        }
 
-      to_move_minimum -= thisWeight;
-      if(to_move_minimum <= 0) {
-        break;
-      }
-    } 
-    
+        partitions[heavier_partition].pop_back();
+        partitions[lighter_partition].push_back(vertexID);
 
+        cout << "moving " << vertexID << " from " << heavier_partition << " to " << lighter_partition << " with weight " << thisWeight << endl;
+        cout << "heavier partition " << partitions[heavier_partition].size() << " " << heavier_partition << " and " << partitions[lighter_partition].size() << " lighter partition " << lighter_partition << endl;
+
+        partition_totalweights[heavier_partition] -= thisWeight;
+        partition_totalweights[lighter_partition] += thisWeight;
+        std::cout << "lighter p: " << partition_totalweights[lighter_partition] << "heavier p: " << partition_totalweights[heavier_partition] << std::endl;
+        partition_assignments[vertexID] = lighter_partition;
+
+       
+    }
 
     // We can try to expand the nodes but it seems to be very slow and not worth it
     G.setOriginalVertices(G.size());
