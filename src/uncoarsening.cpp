@@ -297,6 +297,7 @@ void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, 
             return partition_weights[a] < partition_weights[b];
         });
 
+
         //for each vertex in lightest partition
         for(int i=(partitions.size()-1); i>=(partitions.size()-1); i--){
 
@@ -531,6 +532,14 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         std::cout << "Balance partitions" << std::endl;
         start_time = std::chrono::high_resolution_clock::now();
         balancePartitions(graph, partitions, partition_weights, boundaryVertices, partitions, maxDeviation, target_weight);
+
+        int accumulator = 0;
+        for (auto thisPart : partitions)
+        {
+            accumulator += thisPart.size();
+        }
+        std::cout << "Graph size " << accumulator << std::endl;
+
         std::cout << "Balance partitions ended" << std::endl;
         end_time = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
