@@ -399,6 +399,20 @@ void copyCoarseningData(Graph &other)
         ORIGINAL_VERTICES_COUNT = 0;
     }
 
+    // Function to clear the graph and reset it to its initial state
+    void clearButMappings() {
+        // Clear the vertices, adjacency list, and edge weights
+        vertices.clear();
+        adjacencyList.clear();
+        edgeWeights.clear();
+
+        // Clear mappings and other data
+        expandedRange.clear();
+
+        // Reset ORIGINAL_VERTICES_COUNT
+        ORIGINAL_VERTICES_COUNT = 0;
+    }
+
     std::vector<int> inflateVertex(const int& vertexID, int& offset) {
         if(vertexID < 0) return std::vector<int>();
         std::vector<int> inflation;
