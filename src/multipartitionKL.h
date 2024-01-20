@@ -27,6 +27,7 @@ double calculateCutSize(const Graph& G, const std::vector<std::vector<int>>& par
 // Function to print partitions
 void printPartitions(const std::vector<std::vector<int>>& partitions, std::unordered_map<int, double> vertices);
 #endif
+
 // Function to fill a partition with dummy nodes to match the maximum weight
 void fillPartition(Partition& partition, int& alreadyIns, const double& max_weight);
 // Function to clean partitions by removing dummy nodes

@@ -1,5 +1,7 @@
-#include "graph.h"
+#ifdef DEBUG
 #include <iostream>
+#endif
+#include "graph.h"
 #include <vector>
 #include <algorithm>
 #include <map>
@@ -89,15 +91,16 @@ int calcMaxGain(std::vector<SwapNodes> swapNodes, double &max_gain) {
     return k;
 }
 
+#ifdef DEBUG
 // Function to print gains
 void printGain(std::multimap<double, std::pair<int, int>> gains) {
     std::cout << "Gains: " << std::endl;
     for (auto gain : gains) {
-      if (gain.first != 0 )
+    if (gain.first != 0 )
         std::cout << "Edge (" << gain.second.first << "," << gain.second.second << "): " << gain.first << std::endl;
     }
 }
-
+#endif
 // Function to update the partition after a swap
 void updatePartition(std::vector<int> &nodesA, std::vector<int> &nodesB, std::vector<SwapNodes> swapNodes, int k) {
     for (int i = 0; i < k + 1; i++) {
@@ -108,7 +111,7 @@ void updatePartition(std::vector<int> &nodesA, std::vector<int> &nodesB, std::ve
         }
     }
 }
-
+#ifdef DEBUG
 // Function to print the partition
 void partitionPrint(std::vector<int> nodesA, std::vector<int> nodesB) {
     std::cout << "Partition A: " << std::endl;
@@ -116,12 +119,13 @@ void partitionPrint(std::vector<int> nodesA, std::vector<int> nodesB) {
         std::cout << i << ", ";
     }
     std::cout << std::endl
-              << "Partition B: " << std::endl;
+            << "Partition B: " << std::endl;
     for (auto i : nodesB) {
         std::cout << i << ", ";
     }
     std::cout << std::endl;
 }
+#endif
 
 // Main KL Partitioning function
 int KL_Partitioning(Graph &G, std::vector<int> &nodesA, std::vector<int> &nodesB) {

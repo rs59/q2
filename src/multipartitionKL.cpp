@@ -4,8 +4,8 @@
 #include <chrono>
 
 int main(int argc, char* argv[]) {
-    if (argc != 5) {
-        std::cerr << "Usage: " << argv[0] << " nthreads npartitions inputfile outputfile" << std::endl;
+    if (argc != 6) {
+        std::cerr << "Usage: " << argv[0] << " nthreads npartitions inputfile outputfile mode: -rr for round robin or -b  for blob" << std::endl;
         return 1;
     }
 
@@ -16,6 +16,12 @@ int main(int argc, char* argv[]) {
     int npartitions = std::stoi(argv[2]);
     std::string inputfile = argv[3];
     std::string outputfile = argv[4];
+    std::string mode = argv[5];
+
+    if(mode != "-rr" && mode != "-b"){
+        std::cerr << "invalid mode or mode not selected" << std::endl;
+        exit(1);
+    }
 
     // initialize the Graph from reading the file
     Graph graph = metisRead(inputfile, nthreads);
@@ -24,8 +30,18 @@ int main(int argc, char* argv[]) {
     double reading_seconds = reading_duration.count() / 1e6;
     std::cout << "Reading Execution time: " << reading_seconds << " seconds" << std::endl;
 
-    // Call the algorithm function
-    auto partitions = multipartitionKL_blob(graph, npartitions);
+    // graph.print();
+
+    std::vector<std::vector<int>> partitions;
+    // Call the algorithm function based on the mode selected
+    if(mode == "-rr") partitions = multipartitionKL_round_robin(graph, npartitions);
+    else  partitions = multipartitionKL_blob(graph, npartitions);
+
+#ifdef DEBUG
+    printPartitions(partitions, graph.getVertices());
+#endif
+
+
     auto partitioning_end_time = std::chrono::high_resolution_clock::now();
     auto partitioning_duration = std::chrono::duration_cast<std::chrono::microseconds>(partitioning_end_time - reading_end_time);\
     double partitioning_seconds = partitioning_duration.count() / 1e6;
@@ -68,6 +84,7 @@ double calculateCutSize(const Graph& G, const std::vector<std::vector<int>>& par
 // Function to print partitions
 void printPartitions(const std::vector<std::vector<int>>& partitions, std::unordered_map<int, double> vertices){
     int weight;
+    std::cout << "Printing Partitions: " << std::endl;
     for(int i = 0; i < partitions.size(); i++){
         weight = 0;
         std::cout << "Partition " << i + 1 << ": " << partitions[i].size() << std::endl;
@@ -256,7 +273,7 @@ std::vector<std::vector<int>> multipartitionKL_blob(Graph &G, int numPartitions)
 {
 
     int gOriginalSize = G.size();
-
+    G.setOriginalVertices(G.size());
     // std::pair<int, int> partitionsToMake = dividePartitionCount(numPartitions);
     std::vector<std::vector<int>> partitions = makeNodePartition(G, false);
     numPartitions--; // one less split to complete
@@ -361,41 +378,9 @@ std::vector<std::vector<int>> multipartitionKL_round_robin(Graph& G, const int& 
         }
     } while (!optimized);
     DEBUG_STDOUT("Number of Rounds: " +  std::to_string(rounds));
+#ifdef DEBUG
+    printPartitions(partitions, G.getVertices());
+#endif
     // std::cout << "Number of Rounds: " << rounds << std::endl;
     return partitions;
 }
-
-// // Main function
-// int main() {
-//     // Start the clock
-//     auto start_time = std::chrono::high_resolution_clock::now();
-
-//     // Define the file path and number of threads
-//     // const std::string filename = "/content/q2/resources/metismodels/x15y30m20q20.metis";
-//     const std::string filename = "./resources/metismodels/x100y200m20q20.metis";
-//     // const std::string filename = "/content/q2/resources/metismodels/x1000y2000m20q20.metis";
-//     const int numThreads = 2;  // Change the number of threads if needed
-
-//     // Read the graph from the file
-//     Graph graph = metisRead(filename, numThreads);
-//     graph.print();
-
-//     // Call multi-level KL partitioning
-//     auto optPartitions = multipartitionKL_blob(graph, NPART);
-
-//     // Print the final partitions and some statistics
-//     printPartitions(optPartitions, graph.getVertices());
-
-//     // Stop the clock
-//     auto end_time = std::chrono::high_resolution_clock::now();
-//     // Calculate the duration
-//     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-//     // Convert the duration to a double value in seconds
-//     double seconds = duration.count() / 1e6;
-//     // Print the execution time
-//     std::cout << "Execution time: " << seconds << " seconds" << std::endl;
-//     // Print the final cut size
-//     std::cout << "Final CutSize: " << calculateCutSize(graph, optPartitions);
-
-//     return 0;
-// }
