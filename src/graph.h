@@ -130,23 +130,93 @@ public:
 
     }
 
+    // Function to get a vector of unique vertex IDs
+    // std::vector<int> getUniqueVertices() const
+    // {
+    //     std::vector<int> uniqueVertices;
 
-    //Used to make a temp graph gain the mapping informations for uncoarsening thte new level
-    void copyCoarseningData(Graph& other){
-        // Clear mappings and other data
-        coarserToFinerMappings.clear();
-        edgesMappings.clear();
-        verticesWeightsMapping.clear();
+    //     for (const auto &entry : vertices)
+    //     {
+    //         uniqueVertices.push_back(entry.first);
+    //     }
 
-        for(std::unordered_map<int, int> coarser_to_finer_mapping : other.coarserToFinerMappings){
-            this->pushBackMapping(coarser_to_finer_mapping);
+    //     return uniqueVertices;
+    // }
+
+    // Function to split the graph into two based on given vectors of vertices
+    std::pair<Graph, Graph> splitGraph(const std::vector<int> &vertices1, const std::vector<int> &vertices2) 
+    {
+        // Create two new graphs
+        Graph graph1, graph2;
+
+        // Copy vertices and weights to the new graphs
+        for (int vertexID : vertices1)
+        {
+            if (containsVertex(vertexID))
+            {
+                double weight = getVertexWeight(vertexID);
+                graph1.addVertex(vertexID, weight);
+
+                // Copy neighbors and edges
+                for (int neighbor : getNeighbors(vertexID))
+                {
+                    if (std::find(vertices1.begin(), vertices1.end(), neighbor) != vertices1.end())
+                    {
+                        // If the neighbor is in vertices1, add the edge to graph1
+                        double edgeWeight = getEdgeWeight(vertexID, neighbor);
+                        graph1.addEdge(vertexID, neighbor, edgeWeight);
+                    }
+                }
+            }
         }
-        for(std::unordered_map<std::pair<int, int>, double, HashPair> edgesMapping : other.edgesMappings){
-            this->pushBackMappingEdges(edgesMapping);
+
+        for (int vertexID : vertices2)
+        {
+            if (containsVertex(vertexID))
+            {
+                double weight = getVertexWeight(vertexID);
+                graph2.addVertex(vertexID, weight);
+
+                // Copy neighbors and edges
+                for (int neighbor : getNeighbors(vertexID))
+                {
+                    if (std::find(vertices2.begin(), vertices2.end(), neighbor) != vertices2.end())
+                    {
+                        // If the neighbor is in vertices2, add the edge to graph2
+                        double edgeWeight = getEdgeWeight(vertexID, neighbor);
+                        graph2.addEdge(vertexID, neighbor, edgeWeight);
+                    }
+                }
+            }
         }
-        for(std::unordered_map<int, double> verticesWeights : other.verticesWeightsMapping){
-            this->pushBackVerticesWeights(verticesWeights);
-        }
+
+        // Add connections for disconnected nodes within their own half
+        addDisconnectedConnections(graph1);
+        addDisconnectedConnections(graph2);
+
+        return {graph1, graph2};
+    }
+
+// Used to make a temp graph gain the mapping informations for uncoarsening thte new level
+void copyCoarseningData(Graph &other)
+{
+    // Clear mappings and other data
+    coarserToFinerMappings.clear();
+    edgesMappings.clear();
+    verticesWeightsMapping.clear();
+
+    for (std::unordered_map<int, int> coarser_to_finer_mapping : other.coarserToFinerMappings)
+    {
+        this->pushBackMapping(coarser_to_finer_mapping);
+    }
+    for (std::unordered_map<std::pair<int, int>, double, HashPair> edgesMapping : other.edgesMappings)
+    {
+        this->pushBackMappingEdges(edgesMapping);
+    }
+    for (std::unordered_map<int, double> verticesWeights : other.verticesWeightsMapping)
+    {
+        this->pushBackVerticesWeights(verticesWeights);
+    }
     }
 
     // Function to add an edge between two vertices with its weight
@@ -384,6 +454,38 @@ public:
 private:
     // Member variable to track the count of original vertices
     int ORIGINAL_VERTICES_COUNT;
+
+    void addDisconnectedConnections(Graph &graph) const
+    {
+        std::vector<int> disconnectedNodes;
+
+        // Find disconnected nodes in the graph
+        for (const auto &entry : graph.getVertices())
+        {
+            int vertexID = entry.first;
+            if (graph.getNeighbors(vertexID).empty())
+            {
+                // std::cout << "empty " << vertexID << std::endl;
+                disconnectedNodes.push_back(vertexID);
+            }
+        }
+
+        // Connect disconnected nodes within their own subgraph
+        for (int disconnectedNode : disconnectedNodes)
+        {
+            // std::cout << " disconnected node search " << std::endl;
+            for (const auto &entry : graph.getVertices())
+            {
+                int otherNode = entry.first;
+                if (disconnectedNode != otherNode)
+                {
+                    graph.addEdge(disconnectedNode, otherNode, 1.0); // You can adjust the edge weight as needed
+                    // std::cout << "added disconnected node " << disconnectedNode << " to " << otherNode << std::endl;
+                    break;
+                }
+            }
+        }
+    }
 
     // Data structures to store the graph data
     std::unordered_map<int, double> vertices;  // VertexID -> Weight

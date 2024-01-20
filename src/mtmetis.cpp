@@ -341,7 +341,7 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     // coarsedGraph.print();
     coarsedGraph.setOriginalVertices(coarsedGraph.size());
     std::cout << coarsedGraph.getExpandedStart() << std::endl;
-    std::vector<std::vector<int>> initial_partitions = multipartitionKL(coarsedGraph, npartitions);
+    std::vector<std::vector<int>> initial_partitions = multipartitionKL_blob(coarsedGraph, npartitions);
 
     end_time = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);

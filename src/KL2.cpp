@@ -14,7 +14,7 @@
 #include "KLCore.cpp"
 // #include "ReaderWriter2.cpp"
 #include <chrono>
-#define NPART 2
+#define NPART 6
 
 using namespace std;
 
@@ -70,7 +70,7 @@ std::vector<std::vector<int>> cleanPartition(const std::vector<Partition>& parti
 }
 
 // Function to create initial node partitions
-std::vector<std::vector<int>> makeNodePartion(const Graph& G, const int& numPartitions){
+std::vector<std::vector<int>> makeNodePartition_multiple_round_robin(const Graph& G, const int& numPartitions){
     auto nodes = G.getVertices();
     std::vector<std::vector<int>> partitions(numPartitions);
     int i = 0;
@@ -84,7 +84,8 @@ std::vector<std::vector<int>> makeNodePartion(const Graph& G, const int& numPart
 
 
 // Function to create initial node partitions
-std::vector<std::vector<int>> makeNodePartion2(Graph& G, const int& numPartitions){
+std::vector<std::vector<int>> makeNodePartition(Graph& G, bool expand){
+    int numPartitions = 2;
     srand(time(NULL));
     auto nodes = G.getVertices();
     std::vector<std::vector<int>> partitions(numPartitions);
@@ -100,14 +101,14 @@ std::vector<std::vector<int>> makeNodePartion2(Graph& G, const int& numPartition
         int vertexID = entry.first;
         double weight = entry.second;
         
-        // std::cout << " id: " << vertexID << " weight: " << weight << " exStartIndex: " << exStartIndex << std::endl;
+        std::cout << " id: " << vertexID << " weight: " << weight << " exStartIndex: " << std::endl;
 
         int val = rand() % 2 == 0;
-        if (vertexID < expandedStart) { // if it is not an expanded node
-          partitions[val].push_back(entry.first); // put node in random partition
-          partition_assignments[vertexID] = val;
-          partition_totalweights[val] += weight;
-          
+        if (vertexID < expandedStart + 1)
+        {                                           // if it is not an expanded node
+            partitions[val].push_back(entry.first); // put node in random partition
+            partition_assignments[vertexID] = val;
+            partition_totalweights[val] += weight;
         }
     }
 
@@ -149,36 +150,46 @@ std::vector<std::vector<int>> makeNodePartion2(Graph& G, const int& numPartition
         std::cout << "lighter p: " << partition_totalweights[lighter_partition] << "heavier p: " << partition_totalweights[heavier_partition] << std::endl;
         partition_assignments[vertexID] = lighter_partition;
 
-       
+        std::for_each(partitions[heavier_partition].begin(), partitions[heavier_partition].end(), [](int value)
+                      { std::cout << value << " "; });
+        std::cout << std::endl;
+        std::for_each(partitions[lighter_partition].begin(), partitions[lighter_partition].end(), [](int value)
+                      { std::cout << value << " "; });
+        std::cout << std::endl;
     }
 
     // We can try to expand the nodes but it seems to be very slow and not worth it
-    G.setOriginalVertices(G.size());
-    std::cout << G.size() << " VERTICES IN GRAPH" << std::endl;
+    if(expand) {
+        G.setOriginalVertices(G.size());
+        std::cout << G.size() << " VERTICES IN GRAPH" << std::endl;
 
-    //                  G.expandNodes();
-    // auto expandedRange = G.getExpandedRange();
-    
-
-    // // Assign expanded nodes
-    //  for(const auto& entry : nodes){
-    //     int vertexID = entry.first;
-    //     double weight = entry.second;
-    //     int exStartIndex = expandedRange[vertexID];
+                        G.expandNodes();
+        auto expandedRange = G.getExpandedRange();
         
-    //     if (vertexID < expandedStart) { // if it is not an expanded node
-    //       int val = partition_assignments[vertexID];
-          
-    //       for(int i=0; i < weight; i++) {  // if it is an expanded node
-    //         // cout << "val : " << val << "currInd : " << exStartIndex+i << " expandedRange : " << expandedRange[exStartIndex+i] << std::endl;
-    //         partitions[val].push_back(exStartIndex+i); // Step 2: Assign all extra generated vertices to the same partition as their original vertex
-    //       }
-          
-    //     }
-    //   }
-    
-    
 
+        // Assign expanded nodes t
+        for(const auto& entry : nodes){
+            int vertexID = entry.first;
+            double weight = entry.second;
+            int exStartIndex = expandedRange[vertexID];
+            
+            if (vertexID < expandedStart+1) { // if it is not an expanded node
+                int val = partition_assignments[vertexID];
+                
+                for(int i=0; i < weight; i++) {  // if it is an expanded node
+                    // cout << "val : " << val << "currInd : " << exStartIndex+i << " expandedRange : " << expandedRange[exStartIndex+i] << std::endl;
+                    partitions[val].push_back(exStartIndex+i); // Step 2: Assign all extra generated vertices to the same partition as their original vertex
+                }
+            
+            }
+        }
+        
+        
+        // De-expand nodes
+
+        G.collapseNodes();
+
+    }
 
     // std::cout << "Partition A balanced weight: " << count_partition_a << std::endl;
     // std::cout << "Partition B balanced weight: " << count_partition_b << std::endl;
@@ -187,9 +198,98 @@ std::vector<std::vector<int>> makeNodePartion2(Graph& G, const int& numPartition
     return partitions;
 }
 
+
+std::pair<int, int> dividePartitionCount(const int &n)
+{
+    int part1;
+    int part2;
+    if (n % 2 == 1)
+    {
+        part1 = n / 2;
+        part2 = n / 2 + 1;
+    }
+    else
+    {
+        part1 = part2 = n / 2;
+    }
+    return std::make_pair(part1, part2);
+}
+
 // Function for Kernighan-Lin Multi-level Partitioning
-std::vector<std::vector<int>> multipartitionKL(Graph& G, const int& numPartitions) {
-    auto partitions = makeNodePartion2(G, numPartitions);
+std::vector<std::vector<int>> multipartitionKL_blob(Graph &G, int numPartitions)
+{
+
+    int gOriginalSize = G.size();
+
+    // std::pair<int, int> partitionsToMake = dividePartitionCount(numPartitions);
+    std::vector<std::vector<int>> partitions = makeNodePartition(G, false);
+    numPartitions--; // one less split to complete
+    if (numPartitions == 1)
+    { // if there is only one partition left to split, then quit
+        return partitions;
+    }
+    std::vector<Graph> graphs;
+    std::pair<Graph, Graph> graphPair = G.splitGraph(partitions[0], partitions[1]);
+    graphs.push_back(graphPair.first);
+    graphs.push_back(graphPair.second);
+
+    // Now partitions and graphs match and are in vectors
+
+    printPartitions(partitions, G.getVertices());
+
+    while (true) // Divide all of the partitions in the last round (2,4,8,16,etc.)
+    {
+
+        auto currentGraphs = graphs;
+        int orig_size = partitions.size();
+        for (auto tempG : currentGraphs)
+        {
+            std::cout << "number of graphs: " << graphs.size() << std::endl;
+            // tempG.print();
+            // splitGraph for each partition
+            // std::cout << "tempG size " << tempG.size() << std::endl;
+
+            tempG.setOriginalVertices(gOriginalSize);
+            auto tempPartitions = makeNodePartition(tempG, false);
+            KL_Partitioning(tempG, tempPartitions[0], tempPartitions[1]);
+
+            // std::for_each(tempPartitions[0].begin(), tempPartitions[0].end(), [](int value)
+            //               { std::cout << value << " "; });
+            // std::cout << std::endl;
+            // std::for_each(tempPartitions[1].begin(), tempPartitions[1].end(), [](int value)
+            //               { std::cout << value << " "; });
+            // std::cout << std::endl;
+
+            std::pair<Graph, Graph> tempGraphs = tempG.splitGraph(tempPartitions[0], tempPartitions[1]);
+            // printPartitions(tempPartitions, tempGraphs.first.getVertices());
+
+            partitions.erase(partitions.begin());
+            partitions.push_back(tempPartitions[0]);
+            partitions.push_back(tempPartitions[1]);
+
+            graphs.erase(graphs.begin());
+            graphs.push_back(tempGraphs.first);
+            graphs.push_back(tempGraphs.second);
+
+            // std::cout << "NEW number of graphs: " << graphs.size() << std::endl;
+
+            numPartitions--; // one less split to complete
+            if (numPartitions == 1)
+            { // if there is only one partition left to split, then quit
+                break;
+            }
+        }
+        if (numPartitions == 1) {
+            break;
+        }
+        
+    }
+    return partitions;
+}
+
+// Function for Kernighan-Lin Multi-level Partitioning
+std::vector<std::vector<int>> multipartitionKL_round_robin(Graph& G, const int& numPartitions) {
+    auto partitions = makeNodePartition_multiple_round_robin(G, numPartitions);
     char optimized = 1;
     int rounds = 0;
     do {
@@ -229,7 +329,7 @@ std::vector<std::vector<int>> multipartitionKL(Graph& G, const int& numPartition
 
 //     // Define the file path and number of threads
 //     // const std::string filename = "/content/q2/resources/metismodels/x15y30m20q20.metis";
-//     const std::string filename = "./resources/metismodels/x15y30m20q20.metis";
+//     const std::string filename = "./resources/metismodels/x100y200m20q20.metis";
 //     // const std::string filename = "/content/q2/resources/metismodels/x1000y2000m20q20.metis";
 //     const int numThreads = 2;  // Change the number of threads if needed
 
@@ -238,7 +338,7 @@ std::vector<std::vector<int>> multipartitionKL(Graph& G, const int& numPartition
 //     graph.print();
 
 //     // Call multi-level KL partitioning
-//     auto optPartitions = multipartitionKL(graph, NPART);
+//     auto optPartitions = multipartitionKL_blob(graph, NPART);
 
 //     // Print the final partitions and some statistics
 //     printPartitions(optPartitions, graph.getVertices());
