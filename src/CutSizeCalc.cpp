@@ -8,7 +8,7 @@
 #define DEBUG_STDOUT(x)
 #endif
 
-#include "ReaderWriter2.cpp"
+#include "RdWr.cpp"
 
 // Function to calculate the cut size of partitions
 double calculateCutSize(const Graph& G, const std::vector<std::vector<int>>& partitions){
@@ -111,7 +111,9 @@ int main(int argc, char* argv[]){
     //     }
     //     std::cout << std::endl;
     // }
+    DEBUG_STDOUT("Started Calculating Partition Weights");
     auto pWeights = partitonsWeight(graph, partitions);
+    DEBUG_STDOUT("Finished Calculating Partition Weights");
     for(unsigned int i = 0;i< pWeights.size(); i++){
         std::cout << "Partition " << i << " weight :" << pWeights[i] << std::endl;
     }
