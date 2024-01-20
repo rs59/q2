@@ -48,6 +48,7 @@ void calcD(const Graph &G, const std::vector<int> &nodesA, std::map<int, double>
 void updateD(const Graph &G, std::map<int, double> &dValuesA, std::map<int, double> &dValuesB, std::pair<int, int> swapNodes) {
     dValuesA.erase(swapNodes.first);
     dValuesB.erase(swapNodes.second);
+    // add or subtract based on the partition the value of the edge
     for (auto it = dValuesA.begin(); it != dValuesA.end(); ++it) {
         it->second += 2 * G.getEdgeWeightKL(swapNodes.first, it->first);
         it->second -= 2 * G.getEdgeWeightKL(swapNodes.second, it->first);
@@ -63,8 +64,10 @@ std::multimap<double, std::pair<int, int>> gainCalc(Graph &G, std::map<int, doub
     std::multimap<double, std::pair<int, int>> gains;
     for (auto dValueA : dValuesA) {
         for (auto dValueB : dValuesB) {
+            // Formula for the gain
             double gain = dValueA.second + dValueB.second - 2 * G.getEdgeWeightKL(dValueA.first, dValueB.first);
             // std::cout << "gain " << gain << " from " << dValueA.first << " and " << dValueB.first << std::endl;
+            // save couple of nodes and their gain in ordered map
             gains.insert(std::pair<double, std::pair<int, int>>(gain, std::pair<int, int>(dValueA.first, dValueB.first)));
         }
     }
@@ -75,6 +78,7 @@ std::multimap<double, std::pair<int, int>> gainCalc(Graph &G, std::map<int, doub
 int calcMaxGain(std::vector<SwapNodes> swapNodes, double &max_gain) {
     double gain;
     int k;
+    // sum all single max_gain and save the partial sum with the highest sum
     for (int i = 0; i < swapNodes.size(); i++) {
         if (i == 0) {
             k = i;
@@ -101,16 +105,20 @@ void printGain(std::multimap<double, std::pair<int, int>> gains) {
     }
 }
 #endif
+
 // Function to update the partition after a swap
 void updatePartition(std::vector<int> &nodesA, std::vector<int> &nodesB, std::vector<SwapNodes> swapNodes, int k) {
     for (int i = 0; i < k + 1; i++) {
+        // for all memebers which gave the max amount of swap find the iterator
         auto itA = std::find(nodesA.begin(), nodesA.end(), swapNodes[i].nodes.first);
         auto itB = std::find(nodesB.begin(), nodesB.end(), swapNodes[i].nodes.second);
         if (itA != nodesA.end() && itB != nodesB.end()) {
+            // swap the nodes in the partitions
             std::iter_swap(itA, itB);
         }
     }
 }
+
 #ifdef DEBUG
 // Function to print the partition
 void partitionPrint(std::vector<int> nodesA, std::vector<int> nodesB) {
@@ -136,9 +144,9 @@ int KL_Partitioning(Graph &G, std::vector<int> &nodesA, std::vector<int> &nodesB
     do {
         i++;
         std::vector<SwapNodes> swapNodes;
-        std::cout << "calcD " << std::endl;
+        DEBUG_STDOUT("calcD ");
         calcD(G, nodesA, dValuesA, nodesB, dValuesB);
-        std::cout << "finished calcD " << std::endl;
+        DEBUG_STDOUT("finished calcD ");
         int prevPrevGain = -3000000;
         int prevGain = -2000000;
         int currGain = -1000000;
@@ -165,7 +173,8 @@ int KL_Partitioning(Graph &G, std::vector<int> &nodesA, std::vector<int> &nodesB
         }
         // Find the index with the maximum cumulative gain
         int k = calcMaxGain(swapNodes, max_gain);
-        std::cout << "\tmg " << max_gain << std::endl;
+        DEBUG_STDOUT("\tMax Gain: " +  std::to_string(max_gain));
+        // std::cout << "\tmg " << max_gain << std::endl;
         // Update partition if there is a positive gain
         if (max_gain > 0)
             updatePartition(nodesA, nodesB, swapNodes, k);
@@ -173,60 +182,3 @@ int KL_Partitioning(Graph &G, std::vector<int> &nodesA, std::vector<int> &nodesB
     return i; // Return the number of iterations
 }
 
-
-/*
-using namespace std;
-
-void printPart(vector<int> nodesA, vector<int> nodesB) {
-    cout << "Partition A :" << endl;
-    for(auto node: nodesA){
-        cout << node << " ";
-    }
-    cout << endl;
-    cout << "Partition B :" << endl;
-    for(auto node: nodesB){
-        cout << node << " ";
-    }
-    cout << endl;
-}
-
-
-int main()
-{
-    Graph G;
-    G.addVertex(1, 1);
-    G.addVertex(2, 1);
-    G.addVertex(3, 1);
-    G.addVertex(4, 1);
-    G.addVertex(5, 1);
-    G.addVertex(6, 1);
-
-    G.addEdge(1, 2, 1);
-    G.addEdge(1, 3, 2);
-    G.addEdge(1, 4, 3);
-    G.addEdge(1, 5, 2);
-    G.addEdge(1, 6, 4);
-
-    G.addEdge(2, 3, 1);
-    G.addEdge(2, 4, 4);
-    G.addEdge(2, 5, 2);
-    G.addEdge(2, 6, 1);
-
-    G.addEdge(3, 4, 3);
-    G.addEdge(3, 5, 2);
-    G.addEdge(3, 6, 1);
-
-    G.addEdge(4, 5, 4);
-    G.addEdge(4, 6, 3);
-
-    G.addEdge(5, 6, 2);
-    vector<int> nodesA = {1, 2, 3}, nodesB = {4, 5, 6};
-    printPart(nodesA,nodesB);
-    auto iter = KL_Partitioning(G, nodesA, nodesB);
-    cout << endl << "iterations: " << iter << endl;
-    printPart(nodesA,nodesB);
-    iter = KL_Partitioning(G, nodesA, nodesB);
-    cout << endl << "iterations: " << iter << endl;
-    printPart(nodesA,nodesB);
-    return 0;
-}**/
