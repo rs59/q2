@@ -299,21 +299,18 @@ void PrintDetails(const std::vector<std::vector<int>>& partitions, string output
     //TO DO
     int partitionIndex = 0;
     for (const auto& partition : partitions) {
-        std::cout << "Partition " << partitionIndex << ": ";
+        DEBUG_STDOUT("Partition " + std::to_string(partitionIndex) + ": ");
         int sum = 0;
         for (const auto& vertex : partition) {
-            //std::cout << vertex << " ";
             sum += graph.getVertexWeight(vertex);
         }
-        std::cout << std::endl;
-        std::cout << "Total weight: " << sum << std::endl;
-        std::cout << std::endl;
+        DEBUG_STDOUT("Total weight: " + std::to_string(sum) + "\n");
         partitionIndex++;
     }
 }
 
 
-void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, string inputfile, string outputfile){
+void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, string inputfile, string outputfile, int coarsestSize, string algorithm){
     auto start_time = std::chrono::high_resolution_clock::now();
     DEBUG_STDOUT("Entering metisRead");
     graph = metisRead(inputfile, nthreads);      //load the graph from file
@@ -325,42 +322,46 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     // Convert the duration to a double value in seconds
     double seconds = duration.count() / 1e6;
     // Print the execution time
-    std::cout << "Reading time: " << seconds << " seconds" << std::endl;
-    //graph.print();
+    DEBUG_STDOUT("Reading time: " + std::to_string(seconds) + " seconds");
+
     start_time = std::chrono::high_resolution_clock::now();
-    std::cout << std::endl << std::endl << "COARSENING" << std::endl;
-    Graph coarsedGraph = Coarsening(graph, nthreads, npartitions);        //Coarse the initial graph
+    DEBUG_STDOUT("\nCOARSENING");
+    Graph coarsedGraph = Coarsening(graph, nthreads, npartitions, coarsestSize);        //Coarse the initial graph
     end_time = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     seconds = duration.count() / 1e6;
-    std::cout << "Coarsening time: " << seconds << " seconds" << std::endl;
+    DEBUG_STDOUT("Coarsening time: " + std::to_string(seconds) + " seconds");
     start_time = std::chrono::high_resolution_clock::now();
 
-    std::cout << std::endl << "INITIAL PARTITIONING" << std::endl;
-    // std::vector<std::vector<int>> initial_partitions = InitialPartitioning(coarsedGraph, npartitions, maxdeviation);
-    // coarsedGraph.print();
-    coarsedGraph.setOriginalVertices(coarsedGraph.size());
-    std::cout << coarsedGraph.getExpandedStart() << std::endl;
-    std::vector<std::vector<int>> initial_partitions = multipartitionKL_blob(coarsedGraph, npartitions);
+    DEBUG_STDOUT("\nINITIAL PARTITIONING");
+    std::vector<std::vector<int>> initial_partitions;
+    if(algorithm == "-g"){
+        initial_partitions = InitialPartitioning(coarsedGraph, npartitions, maxdeviation);
+    }else{
+        coarsedGraph.setOriginalVertices(coarsedGraph.size());
+        std::cout << coarsedGraph.getExpandedStart() << std::endl;
+        initial_partitions = multipartitionKL_blob(coarsedGraph, npartitions);
+    }
+
 
     end_time = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     seconds = duration.count() / 1e6;
-    std::cout << "Initial partitioning time: " << seconds << " seconds" << std::endl;
+    DEBUG_STDOUT("Initial partitioning time: " + std::to_string(seconds) + " seconds");
     start_time = std::chrono::high_resolution_clock::now();
-    std::cout << std::endl << "BOUNDARY VERTICES" << std::endl;
+    DEBUG_STDOUT("\nBOUNDARY VERTICES");
     std::vector<int> boundaryVertices = findBoundaryVertices(coarsedGraph, initial_partitions);
     end_time = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     seconds = duration.count() / 1e6;
-    std::cout << "Boundary vertices time: " << seconds << " seconds" << std::endl;
+    DEBUG_STDOUT("Boundary vertices time: " + std::to_string(seconds) + " seconds");
     start_time = std::chrono::high_resolution_clock::now();
-    std::cout << std::endl << "UNCOARSENING" << std::endl;
+    DEBUG_STDOUT("\nUNCOARSENING");
     std::vector<std::vector<int>> uncoarsened_partitions = Uncoarsening(coarsedGraph, initial_partitions, boundaryVertices, nthreads, maxdeviation);
     end_time = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     seconds = duration.count() / 1e6;
-    std::cout << "Uncoarsening time: " << seconds << " seconds" << std::endl;
+    DEBUG_STDOUT("Uncoarsening time: " + std::to_string(seconds) + " seconds");
     writeToFile(uncoarsened_partitions, outputfile);
     PrintDetails(uncoarsened_partitions, outputfile);
 }
@@ -368,8 +369,8 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
 
 
 int main(int argc, char* argv[]) {
-    if (argc < 6) {
-        std::cerr << "Usage: " << argv[0] << " nthreads npartitions maxdeviation inputfile outputfile" << std::endl;
+    if (argc < 8) {
+        std::cerr << "Usage: " << argv[0] << " nthreads npartitions maxdeviation inputfile outputfile coarsestGraphSize partitioningAlg: -g for greedy or -kl for KL" << std::endl;
         return 1;
     }
 
@@ -381,9 +382,16 @@ int main(int argc, char* argv[]) {
     float maxdeviation = std::stof(argv[3]);
     std::string inputfile = argv[4];
     std::string outputfile = argv[5];
+    int coarsestSize = std::stoi(argv[6]);
+    std::string algorithm = argv[7];
+
+    if(algorithm != "-g" && algorithm != "-kl"){
+        std::cerr << "invalid partitioningAlg or partitioningAlg not selected" << std::endl;
+        exit(1);
+    }
 
     // Call the algorithm function
-    MultithreadedMETIS(nthreads, npartitions, maxdeviation, inputfile, outputfile);
+    MultithreadedMETIS(nthreads, npartitions, maxdeviation, inputfile, outputfile, coarsestSize, algorithm);
 
     // Stop the clock
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -392,7 +400,7 @@ int main(int argc, char* argv[]) {
     // Convert the duration to a double value in seconds
     double seconds = duration.count() / 1e6;
     // Print the execution time
-    std::cout << "Execution time: " << seconds << " seconds" << std::endl;
+    DEBUG_STDOUT("Execution time: " + std::to_string(seconds) + " seconds");
 
 
     return 0;

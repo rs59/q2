@@ -7,6 +7,14 @@
 #include <mutex>
 #include <condition_variable>
 
+#ifdef DEBUG
+#define DEBUG_STDERR(x) (std::cerr << (x) << std::endl)
+#define DEBUG_STDOUT(x) (std::cout << (x) << std::endl)
+#else
+#define DEBUG_STDERR(x)
+#define DEBUG_STDOUT(x)
+#endif
+
 int crrnt_ctr;
 int MAX_SWAPS_PER_ITERATION = 1000;
 
@@ -65,10 +73,8 @@ void UncoarseningGraph(Graph& uncoarsened_temp, std::unordered_map<int, int>& co
 
 //After having uncoarsed the graph of 1 level, uncoarse also the partitions (so that it matches the actual level of coarsening)
 void UncoarsePartitions(std::unordered_map<int, int>& coarser_to_finer_mapping, std::vector<std::vector<int>>& partitions, std::vector<std::vector<int>>& uncoarsed_partitions, std::mutex& mutex, int start, int end) {
-    //std::cout << "Thread here" << std::endl;
     mutex.unlock();
 
-    //Chat-GPT code
     std::vector<std::vector<int>> localUncoarsed(partitions.size());
 
     // Uses the same data structure used to uncoarse vertices in the graph uncoarsening step
@@ -91,6 +97,7 @@ void UncoarsePartitions(std::unordered_map<int, int>& coarser_to_finer_mapping, 
     // Lock only once for the batch update
     mutex.lock();
     for (int i = 0; i < localUncoarsed.size(); i++) {
+        uncoarsed_partitions[i].reserve(uncoarsed_partitions[i].size() + localUncoarsed[i].size());
         uncoarsed_partitions[i].insert(uncoarsed_partitions[i].end(), localUncoarsed[i].begin(), localUncoarsed[i].end());
     }
     mutex.unlock();
@@ -99,7 +106,6 @@ void UncoarsePartitions(std::unordered_map<int, int>& coarser_to_finer_mapping, 
 //This function uncoarse the boundary vertices to the next level, these nodes will be used to calculate the gain of each node (only boundaries one), and in the refionement
 //step for the swaps to decrease cut size
 void uncoarseBoundaries(Graph& graph, std::unordered_map<int, int>& coarser_to_finer_mapping, std::vector<int>& boundaryVertices, std::vector<int>& uncoarsedBoundaryVertices, std::vector<std::vector<int>>& partitions,  std::mutex& mutex, int start, int end){
-    //std::cout << "Thread[" << start << "," << end << "] started" << std::endl;
     mutex.unlock();
 
     //Uses the same data structure used to uncoarse vertices in the graph uncoarsening step
@@ -201,8 +207,10 @@ void refinementStep(Graph& graph, std::vector<std::pair<int, double>>& vertexGai
         tempVertexGains.emplace_back(vertexID, initialGain);
     }
 
+    //Copy the vertices from temporal data structure to common one
     mutex.lock();
-    vertexGains.insert(vertexGains.end(), tempVertexGains.begin(), tempVertexGains.end());
+    vertexGains.reserve(vertexGains.size() + tempVertexGains.size());
+    std::move(tempVertexGains.begin(), tempVertexGains.end(), std::back_inserter(vertexGains));
     mutex.unlock();
 }
 
@@ -363,7 +371,7 @@ void balancePartitions(Graph& graph, std::vector<std::vector<int>>& partitions, 
 //Function to uncoarse the coarsed graph
 std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector<int>>& partitions, std::vector<int>& boundaryVertices, int numThreads, float maxDeviation){
 
-    std::cout << "Uncoarsening entered" << std::endl;
+    DEBUG_STDOUT("Uncoarsening entered");
     int num_levels = graph.getCoarsingLevel(); //levels of coarsening steps (how many iteration were performed in coarsening function)
 
     //Data structures stored in the graph object, used to undo coarsening operation after having partitioned the nodes
@@ -400,7 +408,7 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
 
     //For each level, unocarse the graph, uncoarse the prtitions and refine them
     for (int level = num_levels - 1; level >= 0; level--) {
-        std::cout << "Uncoarsening a new level" << std::endl;
+        DEBUG_STDOUT("Uncoarsening a new level");
         // Create a single mutex for synchronization
         std::mutex mutex;
 
@@ -410,7 +418,7 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         verticesWeights = graph.getMappingVerticesWeights(level);
 
         //Graph uncoarsening
-        std::cout << "Graph uncoarsening" << std::endl;
+        DEBUG_STDOUT("Graph uncoarsening");
         auto start_time = std::chrono::high_resolution_clock::now();
 
         // Divide the work among three threads
@@ -446,17 +454,17 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
             thread.join();
         }
         threads.clear();
-        uncoarsened_temp.copyCoarseningData(graph);  //copy the data structure used to reconstruct the original graph also in the new copy of the graph
-        graph = uncoarsened_temp;
+        uncoarsened_temp.copyCoarseningData(graph, level);  //copy the data structure used to reconstruct the original graph also in the new copy of the graph
+        graph = std::move(uncoarsened_temp);
         uncoarsened_temp.clear(); //After being copied, clear the temp graph
-        std::cout << "Graph uncoarsening finished" << std::endl;
+        DEBUG_STDOUT("Graph uncoarsening finished");
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
         auto seconds = duration.count() / 1e6;
-        std::cout << "Graph uncoarsening time: " << seconds << " seconds" << std::endl;
+        DEBUG_STDOUT("Graph uncoarsening time: " + std::to_string(seconds) + " seconds");
 
         //Uncoarse partitions
-        std::cout << "Partition uncoarsening started" << std::endl;
+        DEBUG_STDOUT("Partition uncoarsening started");
         start_time = std::chrono::high_resolution_clock::now();
         uncoarsed_partitions = std::vector<std::vector<int>>(partitions.size());
 
@@ -481,18 +489,17 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         for (std::thread& thread : threads) {
             thread.join();
         }
-        partitions = uncoarsed_partitions;
-        uncoarsed_partitions.clear();
+        partitions = std::move(uncoarsed_partitions);
         threads.clear();
-        std::cout << "Uncoarse prtition finished" << std::endl;
+        DEBUG_STDOUT("Uncoarse prtition finished");
         end_time = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
         seconds = duration.count() / 1e6;
-        std::cout << "Partitions uncoarsening time: " << seconds << " seconds" << std::endl;
+        DEBUG_STDOUT("Partitions uncoarsening time: " + std::to_string(seconds) + " seconds");
 
         //Uncoarse boundary vertices
 
-        std::cout << "Uncoarse boundary vertices started" << std::endl;
+        DEBUG_STDOUT("Uncoarse boundary vertices started");
         start_time = std::chrono::high_resolution_clock::now();
         //initialize uncoarsed boundary vertices
         uncoarsedBoundaries.clear();
@@ -518,36 +525,28 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         for (std::thread& thread : threads) {
             thread.join();
         }
-        boundaryVertices = uncoarsedBoundaries;
-        uncoarsedBoundaries.clear();
+        boundaryVertices = std::move(uncoarsedBoundaries);
         threads.clear();
 
-        std::cout << "Uncoarse boundary vertices finished" << std::endl;
+        DEBUG_STDOUT("Uncoarse boundary vertices finished");
         end_time = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
         seconds = duration.count() / 1e6;
-        std::cout << "boundary vertices uncoarsening time: " << seconds << " seconds" << std::endl;
+        DEBUG_STDOUT("boundary vertices uncoarsening time: " + std::to_string(seconds) + " seconds");
 
         //If necessary, balance partitions
-        std::cout << "Balance partitions" << std::endl;
+        DEBUG_STDOUT("Balance partitions");
         start_time = std::chrono::high_resolution_clock::now();
         balancePartitions(graph, partitions, partition_weights, boundaryVertices, partitions, maxDeviation, target_weight);
 
-        int accumulator = 0;
-        for (auto thisPart : partitions)
-        {
-            accumulator += thisPart.size();
-        }
-        std::cout << "Graph size " << accumulator << std::endl;
-
-        std::cout << "Balance partitions ended" << std::endl;
+        DEBUG_STDOUT("Balance partitions ended");
         end_time = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
         seconds = duration.count() / 1e6;
-        std::cout << "Balance partitions time: " << seconds << " seconds" << std::endl;
+        DEBUG_STDOUT("Balance partitions time: " + std::to_string(seconds) + " seconds");
 
         //Refinement step
-        std::cout << "Refinement step started" << std::endl;
+        DEBUG_STDOUT("Refinement step started");
         start_time = std::chrono::high_resolution_clock::now();
         // Divide the work among three threads
         int vertexPerThread = boundaryVertices.size() / numThreads;
@@ -570,11 +569,9 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         for (std::thread& thread : threads) {
             thread.join();
         }
-        boundaryVertices = uncoarsedBoundaries;
-        uncoarsedBoundaries.clear();
         threads.clear();
 
-        std::cout << "Vertex gain calculated" << std::endl;
+        DEBUG_STDOUT("Vertex gain calculated");
 
         // Sort in descending order by gain vertexGain
         std::sort(vertexGains.begin(), vertexGains.end(), [](const auto& a, const auto& b) {
@@ -588,9 +585,9 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         end_time = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
         seconds = duration.count() / 1e6;
-        std::cout << "Refinement step 1 time: " << seconds << " seconds" << std::endl;
+        DEBUG_STDOUT("Refinement step time: " + std::to_string(seconds) + " seconds");
 
-        std::cout << "Start swapping" << std::endl;
+        DEBUG_STDOUT("Start swapping");
         start_time = std::chrono::high_resolution_clock::now();
 
         // Access pairs sequentially while gain > 0
@@ -668,11 +665,10 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         }
 
         vertexGains.clear();
-        std::cout << "Refinement step and cycle ended" << std::endl;
         end_time = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
         seconds = duration.count() / 1e6;
-        std::cout << "Swapping time: " << seconds << " seconds" << std::endl;
+        DEBUG_STDOUT("Swapping time: " + std::to_string(seconds) + " seconds");
     }
 
     return partitions;
