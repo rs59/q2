@@ -127,9 +127,9 @@ int main(int argc, char* argv[]){
         }
         sumPartitions += pWeights[i];
     }
-    std::cout << "Expected weight: " << (float(sumPartitions) / pWeights.size()) << std::endl;
-    std::cout << "Min partition " << minPartitionWt << std::endl;
-    std::cout << "Max partition " << maxPartitionWt << std::endl;
+    // std::cout << "Expected weight: " << (float(sumPartitions) / pWeights.size()) << std::endl;
+    // std::cout << "Min partition " << minPartitionWt << std::endl;
+    // std::cout << "Max partition " << maxPartitionWt << std::endl;
     float minActualDeviation = 1 - (float(minPartitionWt) / (float(sumPartitions) / pWeights.size())) + 1;
     float maxActualDeviation = (float(maxPartitionWt) / (float(sumPartitions) / pWeights.size()));
     float highestDeviation = minActualDeviation > maxActualDeviation ? minActualDeviation : maxActualDeviation;
