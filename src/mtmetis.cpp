@@ -17,7 +17,7 @@
 #include "coarsening.cpp"
 #include "uncoarsening.cpp"
 #include "RdWr.cpp"
-#include "multipartitionKL.h"
+#include "multipartitionKL.cpp"
 
 using namespace std;
 
