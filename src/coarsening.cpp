@@ -240,8 +240,8 @@ void CollapseVertices(Graph& coarsed_graph, Graph& graph_cv, std::unordered_map<
     }
 
     // Wait for all threads to finish
-    for (std::thread& thread : threads) {
-        thread.join();
+    for (int i=0; i<threads.size();++i) {
+        threads[i].join();
     }
 
     coarsed_graph.pushBackMapping(vertices_map);
@@ -332,8 +332,8 @@ void UpdateEdgeWeights(Graph& graph_ue, const std::unordered_map<std::pair<int, 
     }
 
     // Wait for all threads to finish
-    for (std::thread& thread : threads) {
-        thread.join();
+    for (int i=0; i<threads.size();++i) {
+        threads[i].join();
     }
     DEBUG_STDOUT("UpdateEdgeWeights exited");
 }
