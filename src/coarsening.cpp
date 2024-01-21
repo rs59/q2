@@ -134,7 +134,8 @@ std::unordered_map<int, int> ComputeMatching(Graph& graph_cm, int numThreads, st
     }
 
     // Wait for all threads to finish
-    for (std::thread& thread : threads) {
+    for (int i = 0; i < numThreads; i++)
+    {
         thread.join();
     }
 
