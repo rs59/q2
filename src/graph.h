@@ -256,7 +256,7 @@ void copyCoarseningData(Graph &other, int level)
         return vertices[vertexID];
     }
 
-    void setEdgeWeight(const int& vertexID,const double& weight){
+    void setVertexWeight(const int& vertexID,const double& weight){
         vertices[vertexID] = weight;
     }
 
