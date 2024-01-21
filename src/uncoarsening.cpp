@@ -450,8 +450,8 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
             });
         }
         // Wait for all threads to finish
-        for (std::thread& thread : threads) {
-            thread.join();
+        for (int i=0; i<threads.size();++i) {
+            threads[i].join();
         }
         threads.clear();
         uncoarsened_temp.copyCoarseningData(graph, level);  //copy the data structure used to reconstruct the original graph also in the new copy of the graph
@@ -486,8 +486,8 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
             });
         }
         // Wait for all threads to finish
-        for (std::thread& thread : threads) {
-            thread.join();
+        for (int i=0; i<threads.size();++i) {
+            threads[i].join();
         }
         partitions = std::move(uncoarsed_partitions);
         threads.clear();
@@ -522,8 +522,8 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
             });
         }
         // Wait for all threads to finish
-        for (std::thread& thread : threads) {
-            thread.join();
+        for (int i=0; i<threads.size();++i) {
+            threads[i].join();
         }
         boundaryVertices = std::move(uncoarsedBoundaries);
         threads.clear();
@@ -566,8 +566,8 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
             });
         }
         // Wait for all threads to finish
-        for (std::thread& thread : threads) {
-            thread.join();
+        for (int i=0; i<threads.size();++i) {
+            threads[i].join();
         }
         threads.clear();
 
