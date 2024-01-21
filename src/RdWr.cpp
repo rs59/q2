@@ -206,8 +206,9 @@ Graph metisRead(const std::string& filename, const int& numThreads){
             });
     }
     // Waiting for all threads to terminate
-    for (auto& thread : threadPool) {
-        thread.join();
+    for (int i = 0; i < numThreads; i++)
+    {
+        threadPool[i].join();
     }
 
     return graph;
