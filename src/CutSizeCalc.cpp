@@ -1,4 +1,4 @@
-#define DEBUG 1
+// #define DEBUG 1
 
 #ifdef DEBUG
 #define DEBUG_STDERR(x) (std::cerr << (x) << std::endl)
@@ -118,7 +118,7 @@ int main(int argc, char* argv[]){
     int maxPartitionWt = pWeights[0];
     int sumPartitions = 0;
     for(unsigned int i = 0;i< pWeights.size(); i++){
-        std::cout << "Partition " << i << " weight :" << pWeights[i] << std::endl;
+        std::cout << "Partition " << i << " weight: " << pWeights[i] << std::endl;
         if(pWeights[i]>maxPartitionWt) {
             maxPartitionWt = pWeights[i];
         }
