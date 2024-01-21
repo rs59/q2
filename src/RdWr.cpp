@@ -70,7 +70,7 @@ void addToGraph(Graph& graph, const std::vector<node>& nodes, std::mutex& writeM
     std::unique_lock<std::mutex> lock(writeMtx);
     // Node Loop
     for(const auto& node: nodes){
-        graph.setEdgeWeight(node.id, node.weight);
+        graph.setVertexWeight(node.id, node.weight);
         // Edges connected to the node loop
         for(const auto& nNode: node.neighbours){
             graph.addEdge(node.id, nNode.neighbourNode, nNode.weight);
@@ -243,7 +243,7 @@ void writeToFile(const std::vector<std::vector<int>>& partitions, const std::str
     for (const auto& line : mPartitions) {
         // Check the node is present
         if(i != line.first){
-            std::cerr << "Missing node"<< std::endl;
+            std::cerr << "Missing node "<< i << std::endl;
             exit(-1);
         }
         // Write on File
