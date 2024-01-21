@@ -95,7 +95,7 @@ void PrintDetails(const std::vector<std::vector<int>>& partitions, string output
 }
 
 
-void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, string inputfile, string outputfile){
+void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, string inputfile, string outputfile, int coarsestSize){
     auto start_time = std::chrono::high_resolution_clock::now();
     DEBUG_STDOUT("Entering metisRead");
     graph = metisRead(inputfile, nthreads);      //load the graph from file
@@ -111,7 +111,7 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
 
     start_time = std::chrono::high_resolution_clock::now();
     DEBUG_STDOUT("\nCOARSENING");
-    Graph coarsedGraph = Coarsening(graph, nthreads, npartitions);        //Coarse the initial graph
+    Graph coarsedGraph = Coarsening(graph, nthreads, npartitions, coarsestSize);        //Coarse the initial graph
     end_time = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     seconds = duration.count() / 1e6;
@@ -148,8 +148,8 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
 
 
 int main(int argc, char* argv[]) {
-    if (argc < 6) {
-        std::cerr << "Usage: " << argv[0] << " nthreads npartitions maxdeviation inputfile outputfile" << std::endl;
+    if (argc < 7) {
+        std::cerr << "Usage: " << argv[0] << " nthreads npartitions maxdeviation inputfile outputfile coarsestGraphSize" << std::endl;
         return 1;
     }
 
@@ -161,9 +161,10 @@ int main(int argc, char* argv[]) {
     float maxdeviation = std::stof(argv[3]);
     std::string inputfile = argv[4];
     std::string outputfile = argv[5];
+    int coarsestSize = std::stoi(argv[6]);
 
     // Call the algorithm function
-    MultithreadedMETIS(nthreads, npartitions, maxdeviation, inputfile, outputfile);
+    MultithreadedMETIS(nthreads, npartitions, maxdeviation, inputfile, outputfile, coarsestSize);
 
     // Stop the clock
     auto end_time = std::chrono::high_resolution_clock::now();

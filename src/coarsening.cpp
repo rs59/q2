@@ -14,8 +14,6 @@
 #define DEBUG_STDOUT(x)
 #endif
 
-int coarsestGraphSize = 50;
-
 int current_ctr;
 
 // Function to compute matching between vertices for coarsening
@@ -339,7 +337,7 @@ void UpdateEdgeWeights(Graph& graph_ue, const std::unordered_map<std::pair<int, 
     DEBUG_STDOUT("UpdateEdgeWeights exited");
 }
 
-Graph Coarsening(Graph& graph, int nthreads, int npartitions){
+Graph Coarsening(Graph& graph, int nthreads, int npartitions, int coarsestGraphSize){
     Graph coarsened_graph = graph;
 
     //Calc the number of isolated nodes
