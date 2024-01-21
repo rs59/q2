@@ -114,9 +114,26 @@ int main(int argc, char* argv[]){
     DEBUG_STDOUT("Started Calculating Partition Weights");
     auto pWeights = partitonsWeight(graph, partitions);
     DEBUG_STDOUT("Finished Calculating Partition Weights");
+    int minPartitionWt = pWeights[0];
+    int maxPartitionWt = pWeights[0];
+    int sumPartitions = 0;
     for(unsigned int i = 0;i< pWeights.size(); i++){
         std::cout << "Partition " << i << " weight :" << pWeights[i] << std::endl;
+        if(pWeights[i]>maxPartitionWt) {
+            maxPartitionWt = pWeights[i];
+        }
+        if(pWeights[i]<minPartitionWt) {
+            minPartitionWt = pWeights[i];
+        }
+        sumPartitions += pWeights[i];
     }
+    std::cout << "Expected weight: " << (float(sumPartitions) / pWeights.size()) << std::endl;
+    std::cout << "Min partition " << minPartitionWt << std::endl;
+    std::cout << "Max partition " << maxPartitionWt << std::endl;
+    float minActualDeviation = 1 - (float(minPartitionWt) / (float(sumPartitions) / pWeights.size())) + 1;
+    float maxActualDeviation = (float(maxPartitionWt) / (float(sumPartitions) / pWeights.size()));
+    float highestDeviation = minActualDeviation > maxActualDeviation ? minActualDeviation : maxActualDeviation;
+    std::cout << "Highest deviation: " << highestDeviation << std::endl;
 
     DEBUG_STDOUT("Started Calculating Cutsize");
     double cutSize = calculateCutSize(graph, partitions);
