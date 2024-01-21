@@ -16,8 +16,8 @@
 #include <thread>
 #include "coarsening.cpp"
 #include "uncoarsening.cpp"
-#include "ReaderWriter2.cpp"
-#include "KL2.cpp"
+#include "RdWr.cpp"
+#include "multipartitionKL.h"
 
 using namespace std;
 
