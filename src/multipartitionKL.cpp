@@ -2,6 +2,12 @@
 #include <iostream>
 #endif
 
+#include <iostream>
+#include <cmath>
+
+#include <chrono>
+#include <thread>
+
 #include "KLCore.cpp"
 
 // Structure to represent a partition
@@ -124,7 +130,7 @@ std::vector<std::vector<int>> makeNodePartition(Graph& G, bool expand){
 
         int thisWeight = nodes[vertexID];
         to_move_minimum -= thisWeight;
-        if (to_move_minimum <= 0)
+        if (to_move_minimum <= 0 && partitions[heavier_partition].size() != 0 && partitions[lighter_partition].size() != 0)
         {
             break;
         }
@@ -233,6 +239,7 @@ std::vector<std::vector<int>> multipartitionKL_blob(Graph &G, int numPartitions)
 #ifdef DEBUG
     printPartitions(partitions, G.getVertices());
 #endif
+    int originalPartitionCount = numPartitions+1;
     while (true) // Divide all of the partitions in the last round (2,4,8,16,etc.)
     {
 
@@ -241,23 +248,43 @@ std::vector<std::vector<int>> multipartitionKL_blob(Graph &G, int numPartitions)
         for (auto tempG : currentGraphs)
         {
             DEBUG_STDOUT("number of graphs: " + std::to_string(graphs.size()));
-            // std::cout << "number of graphs: " << graphs.size() << std::endl;
-            // tempG.print();
+            std::cout << "number of graphs: " << graphs.size() << std::endl;
+            tempG.print();
             // splitGraph for each partition
-            // std::cout << "tempG size " << tempG.size() << std::endl;
+            std::cout << "tempG size " << tempG.size() << std::endl;
 
             tempG.setOriginalVertices(gOriginalSize);
             auto tempPartitions = makeNodePartition(tempG, false);
-            KL_Partitioning(tempG, tempPartitions[0], tempPartitions[1]);
 
-            // std::for_each(tempPartitions[0].begin(), tempPartitions[0].end(), [](int value)
-            //               { std::cout << value << " "; });
-            // std::cout << std::endl;
-            // std::for_each(tempPartitions[1].begin(), tempPartitions[1].end(), [](int value)
-            //               { std::cout << value << " "; });
-            // std::cout << std::endl;
 
-            std::pair<Graph, Graph> tempGraphs = tempG.splitGraph(tempPartitions[0], tempPartitions[1]);
+                        int minPartitionSize = std::pow(2, static_cast<int>(std::floor(std::log2(originalPartitionCount - 1))) - static_cast<int>(std::floor(std::log2(originalPartitionCount - numPartitions + 1)))); // number of nodes required to do x more divisions
+            do {
+                KL_Partitioning(tempG, tempPartitions[0], tempPartitions[1]);
+                std::cout << "    originalPartitionCount: " << originalPartitionCount << std::endl;
+                std::cout << "    numPartitions: " << numPartitions << std::endl;
+                std::cout << "    minPartitionSize: " << minPartitionSize << std::endl;
+                std::for_each(tempPartitions[0].begin(), tempPartitions[0].end(), [](int value)
+                              { std::cout << value << " "; });
+                std::cout << std::endl;
+                std::for_each(tempPartitions[1].begin(), tempPartitions[1].end(), [](int value)
+                              { std::cout << value << " "; });
+                std::cout << std::endl;
+                if (tempPartitions[0].size() < minPartitionSize && tempPartitions[1].size() < minPartitionSize) // then the partition is big enough
+                {
+                    auto tempPartitions = makeNodePartition(tempG, false); // reallocate
+                    std::this_thread::sleep_for(std::chrono::milliseconds(8000));
+                }
+            } while (tempPartitions[0].size() < minPartitionSize && tempPartitions[1].size() < minPartitionSize);
+
+                // std::for_each(tempPartitions[0].begin(), tempPartitions[0].end(), [](int value)
+                //               { std::cout << value << " "; });
+                // std::cout << std::endl;
+                // std::for_each(tempPartitions[1].begin(), tempPartitions[1].end(), [](int value)
+                //               { std::cout << value << " "; });
+                // std::cout << std::endl;
+
+                std::pair<Graph, Graph>
+                    tempGraphs = tempG.splitGraph(tempPartitions[0], tempPartitions[1]);
             // printPartitions(tempPartitions, tempGraphs.first.getVertices());
 
             partitions.erase(partitions.begin());

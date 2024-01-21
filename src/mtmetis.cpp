@@ -314,7 +314,7 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     auto start_time = std::chrono::high_resolution_clock::now();
     DEBUG_STDOUT("Entering metisRead");
     graph = metisRead(inputfile, nthreads);      //load the graph from file
-    graph.print();
+    // graph.print();
     DEBUG_STDOUT("Nodes: " + std::to_string(graph.numVertices()) + "Edges : "+ std::to_string(graph.numEdges()));
 
 
