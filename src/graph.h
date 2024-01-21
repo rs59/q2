@@ -69,6 +69,8 @@ public:
         return *this;
     }
 
+    Graph& operator=(Graph&& other) noexcept;
+
     // Function to add a vertex to the graph with its weight
     void addVertex(int vertexID, double weight = 1) {
         vertices[vertexID] = weight;
@@ -198,24 +200,37 @@ public:
     }
 
 // Used to make a temp graph gain the mapping informations for uncoarsening thte new level
-void copyCoarseningData(Graph &other)
+void copyCoarseningData(Graph &other, int level)
 {
     // Clear mappings and other data
     coarserToFinerMappings.clear();
     edgesMappings.clear();
     verticesWeightsMapping.clear();
 
+    int i=0;
+
     for (std::unordered_map<int, int> coarser_to_finer_mapping : other.coarserToFinerMappings)
     {
-        this->pushBackMapping(coarser_to_finer_mapping);
+        if(i < level){
+            this->pushBackMapping(coarser_to_finer_mapping);
+        }
+        i++;
     }
+    i = 0;
     for (std::unordered_map<std::pair<int, int>, double, HashPair> edgesMapping : other.edgesMappings)
     {
-        this->pushBackMappingEdges(edgesMapping);
+        if(i < level){
+            this->pushBackMappingEdges(edgesMapping);
+        }
+        i++;
     }
+    i = 0;
     for (std::unordered_map<int, double> verticesWeights : other.verticesWeightsMapping)
     {
-        this->pushBackVerticesWeights(verticesWeights);
+        if(i < level){
+            this->pushBackVerticesWeights(verticesWeights);
+        }
+        i++;
     }
     }
 
@@ -512,5 +527,24 @@ private:
     std::vector<std::unordered_map<std::pair<int, int>, double, HashPair>> edgesMappings;
     std::vector<std::unordered_map<int, double>> verticesWeightsMapping;
 };
+
+Graph& Graph::operator=(Graph&& other) noexcept {
+    if (this != &other) {
+        // Move assign vertices, adjacencyList, and edgeWeights
+        vertices = std::move(other.vertices);
+        adjacencyList = std::move(other.adjacencyList);
+        edgeWeights = std::move(other.edgeWeights);
+
+        // Move assign other data structures
+        coarserToFinerMappings = std::move(other.coarserToFinerMappings);
+        edgesMappings = std::move(other.edgesMappings);
+        verticesWeightsMapping = std::move(other.verticesWeightsMapping);
+        expandedRange = std::move(other.expandedRange);
+
+        // Move assign scalar members
+        ORIGINAL_VERTICES_COUNT = other.ORIGINAL_VERTICES_COUNT;
+    }
+    return *this;
+}
 
 #endif // GRAPH_H

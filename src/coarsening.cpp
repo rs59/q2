@@ -6,6 +6,14 @@
 #include <mutex>
 #include <condition_variable>
 
+#ifdef DEBUG
+#define DEBUG_STDERR(x) (std::cerr << (x) << std::endl)
+#define DEBUG_STDOUT(x) (std::cout << (x) << std::endl)
+#else
+#define DEBUG_STDERR(x)
+#define DEBUG_STDOUT(x)
+#endif
+
 int coarsestGraphSize = 50;
 
 int current_ctr;
@@ -15,7 +23,6 @@ int current_ctr;
 void ComputeMatchingSubset(Graph& graph_cm, std::unordered_map<int, int>& matching, std::unordered_map<int, int>& matching_to_collapse, std::unordered_set<int>& unmatchedVertices, std::unordered_set<int>& isolatedVertices,  std::mutex& mutex, std::mutex&barrierMutex,
                            const std::unordered_map<int, double>& vertices, int start, int end, int numThreads, std::condition_variable& cv) {
 
-    //std::cout << "Thread[" << start << "," << end << "] started" << std::endl;
     mutex.unlock();  //let an other thread start
 
     // Create a temporary set to store unmatched vertices
@@ -39,7 +46,6 @@ void ComputeMatchingSubset(Graph& graph_cm, std::unordered_map<int, int>& matchi
     if (current_ctr == numThreads) {
         // All threads have arrived, notify all waiting threads
         current_ctr = 0;
-        //std::cout << "Last thread arrived at the barrier, calling notify all" << std::endl;
         cv.notify_all();
     } else {
         // Not all threads have arrived, wait
@@ -54,11 +60,8 @@ void ComputeMatchingSubset(Graph& graph_cm, std::unordered_map<int, int>& matchi
 
         int vertexId = vertexIterator->first;
 
-        //std::cout << "Checking node " << vertexId << std::endl;
-
         if (matching.find(vertexId) != matching.end()) {
             //Release the lock
-            //std::cout << "Already matched vertex, skipping" << std::endl;
             lock.unlock();
             continue; // Skip already matched vertices
         }
@@ -73,9 +76,7 @@ void ComputeMatchingSubset(Graph& graph_cm, std::unordered_map<int, int>& matchi
 
         // Find the first unmatched neighbor
         for (int neighbor : neighbors) {
-            //std::cout << "Neigbor: " << neighbor << std::endl;
             if (unmatchedVertices.find(neighbor) != unmatchedVertices.end()) {
-                //std::cout << "Matched{" << vertexId << "," << neighbor << "}" << std::endl;
                 matched_neighbor = neighbor;
                 break;
             }
@@ -84,7 +85,6 @@ void ComputeMatchingSubset(Graph& graph_cm, std::unordered_map<int, int>& matchi
 
         //if one of the neighbors is unmatched, match the evaluated vertex with that one and update data structures
         if (matched_neighbor != -1) {
-            //std::cout << "Updating matching data structures" << std::endl;
             matching[vertexId] = matched_neighbor;
             matching[matched_neighbor] = vertexId;
             matching_to_collapse[vertexId] = matched_neighbor;
@@ -105,7 +105,7 @@ std::unordered_map<int, int> ComputeMatching(Graph& graph_cm, int numThreads, st
     std::unordered_set<int> isolatedVertices;
     std::unordered_map<int, double> vertices = graph_cm.getVertices();
 
-    std::cout << "ComputeMatching entered" << std::endl;
+    DEBUG_STDOUT("ComputeMatching entered");
 
     // Create a single mutex for synchronization
     std::mutex mutex;
@@ -160,7 +160,7 @@ std::unordered_map<int, int> ComputeMatching(Graph& graph_cm, int numThreads, st
         std::advance(it, 2);
     }
 
-    std::cout << "ComputeMatching exited" << std::endl;
+    DEBUG_STDOUT("ComputeMatching exited");
 
     return matching;
 }
@@ -173,7 +173,6 @@ std::unordered_map<int, int> ComputeMatching(Graph& graph_cm, int numThreads, st
 //Example: node 1 is matcehd with node 3 and will be collapsed in new node 5, so vertices_map[1] == vertices_map[3] == 5;
 void CollapseVerticesSubset(Graph& graph_cv, Graph& coarsed_graph, std::unordered_map<int, int>& matching, std::unordered_map<int, int>& matching_to_collapse, std::unordered_set<int>& unmatchedVertices, std::mutex& mutex, std::unordered_map<int,int>& vertices_map, std::unordered_map<int, double>& vertices, int& newVertexCtr, int start, int end) {
     //Release the lock so that other threads can be created
-    //std::cout << "Thread[" << start << "," << end << "] started" << std::endl;
     mutex.unlock();
 
     auto vertexIterator = vertices.begin();
@@ -181,8 +180,6 @@ void CollapseVerticesSubset(Graph& graph_cv, Graph& coarsed_graph, std::unordere
     for (int i = start; i < end && vertexIterator != vertices.end(); ++i, ++vertexIterator) {
 
         int vertexId = vertexIterator->first;
-
-        //std::cout << "Evaluating vertex: " << vertexId << std::endl;
 
         auto matched_vertex_it = matching_to_collapse.find(vertexId);
 
@@ -214,27 +211,7 @@ void CollapseVerticesSubset(Graph& graph_cv, Graph& coarsed_graph, std::unordere
 // Function to collapse vertices based on matching information
 // This function collapses vertices in the graph based on the matching information obtained during coarsening.
 void CollapseVertices(Graph& coarsed_graph, Graph& graph_cv, std::unordered_map<int, int>& matching, std::unordered_map<int, int>& matching_to_collapse, std::unordered_set<int>& unmatchedVertices, int numThreads) {
-
-    std::cout << "CollapseVertices entered" << std::endl;
-
-/*
-    // Start the clock
-    auto start_time = std::chrono::high_resolution_clock::now();
-    //save in the new coarsed_graph the previous coarsening mappings
-    for(int i = 0; i < graph_cv.getCoarsingLevel(); i++){
-        coarsed_graph.pushBackMapping(graph_cv.getMapping(i));
-        coarsed_graph.pushBackMappingEdges(graph_cv.getMappingEdges(i));
-        coarsed_graph.pushBackVerticesWeights(graph_cv.getMappingVerticesWeights(i));
-    }
-    // Stop the clock
-    auto end_time = std::chrono::high_resolution_clock::now();
-    // Calculate the duration
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-    // Convert the duration to a double value in seconds
-    double seconds = duration.count() / 1e6;
-    // Print the execution time
-    std::cout << "Restore mappings: " << seconds << " seconds" << std::endl;
-*/
+    DEBUG_STDOUT("CollapseVertices entered");
 
     std::unordered_map<int,int> vertices_map;  //store the mapping between coarsed vertices and original ones {original vertex, new vertex}
     std::unordered_map<int, double> vertices = graph_cv.getVertices();
@@ -272,13 +249,12 @@ void CollapseVertices(Graph& coarsed_graph, Graph& graph_cv, std::unordered_map<
     coarsed_graph.pushBackMappingEdges(graph_cv.getEdgeWeights());
     coarsed_graph.pushBackVerticesWeights(graph_cv.getVertices());
 
-    std::cout << "CollapseVertices exited" << std::endl;
+    DEBUG_STDOUT("CollapseVertices exited");
 }
 
 // Function to update the edge weights after collapsing vertices for a subset of edges
 // This function is executed by each thread to process a subset of edges.
 void UpdateEdgeWeightsSubset(Graph& graph_ue, const std::unordered_map<std::pair<int, int>, double, HashPair>& edge_weights, std::unordered_map<int,int>& vertices_map, std::unordered_map<std::pair<int, int>, double, HashPair>& edge_weights_updated, std::mutex& mutex, int start, int end) {
-    //std::cout << "Thread[" << start << "," << end << "]" << std::endl;
     mutex.unlock();
 
     std::unordered_map<std::pair<int, int>, double, HashPair> tempEdge_weights;
@@ -328,7 +304,7 @@ void UpdateEdgeWeightsSubset(Graph& graph_ue, const std::unordered_map<std::pair
 // This function updates edge weights in the graph after collapsing vertices.
 //After this function, the collapsed graph will have both collapsed nodes and updated edges between them
 void UpdateEdgeWeights(Graph& graph_ue, const std::unordered_map<std::pair<int, int>, double, HashPair>& edge_weights, int numThreads) {
-    std::cout << "UpdateEdgeWeights entered" << std::endl;
+    DEBUG_STDOUT("UpdateEdgeWeights entered");
 
     std::unordered_map<int,int> vertices_map = graph_ue.getMapping(graph_ue.getCoarsingLevel() - 1);
 
@@ -360,7 +336,7 @@ void UpdateEdgeWeights(Graph& graph_ue, const std::unordered_map<std::pair<int, 
     for (std::thread& thread : threads) {
         thread.join();
     }
-    std::cout << "UpdateEdgeWeights exited" << std::endl;
+    DEBUG_STDOUT("UpdateEdgeWeights exited");
 }
 
 Graph Coarsening(Graph& graph, int nthreads, int npartitions){
@@ -386,12 +362,11 @@ Graph Coarsening(Graph& graph, int nthreads, int npartitions){
 
     int i = 0;
 
-    std::cout << "Starting coarsening phase" << std::endl;
+    DEBUG_STDOUT("Starting coarsening phase");
 
     while(coarsened_graph.size() > coarsest_graph_size){
-        std::cout << "New iteration" << std::endl;
+        DEBUG_STDOUT("New iteration");
         Graph temp_graph = coarsened_graph;
-        std::cout << "Graph size: " << temp_graph.getVertices().size() << std::endl;
         // Start the clock
         auto start_time = std::chrono::high_resolution_clock::now();
         std::unordered_map<int, int> matching_to_collapse;
@@ -404,9 +379,7 @@ Graph Coarsening(Graph& graph, int nthreads, int npartitions){
         // Convert the duration to a double value in seconds
         double seconds = duration.count() / 1e6;
         // Print the execution time
-        std::cout << "Compute matching: " << seconds << " seconds" << std::endl;
-
-        std::cout << "Matching to collapse size: " << matching_to_collapse.size() << ", unmatched nodes: " << unmatchedVertices.size() << ", TOT: " << ((matching_to_collapse.size()*2) + unmatchedVertices.size()) << std::endl;
+        DEBUG_STDOUT("Compute matching: " + std::to_string(seconds) + " seconds");
 
         // Start the clock
         start_time = std::chrono::high_resolution_clock::now();
@@ -419,7 +392,7 @@ Graph Coarsening(Graph& graph, int nthreads, int npartitions){
         // Convert the duration to a double value in seconds
         seconds = duration.count() / 1e6;
         // Print the execution time
-        std::cout << "Collapse vertices: " << seconds << " seconds" << std::endl;
+        DEBUG_STDOUT("Collapse vertices: " + std::to_string(seconds) + " seconds");
 
         // Start the clock
         start_time = std::chrono::high_resolution_clock::now();
@@ -432,10 +405,10 @@ Graph Coarsening(Graph& graph, int nthreads, int npartitions){
         // Convert the duration to a double value in seconds
         seconds = duration.count() / 1e6;
         // Print the execution time
-        std::cout << "Update edge weights: " << seconds << " seconds" << std::endl;
+        DEBUG_STDOUT("Update edge weights: " + std::to_string(seconds) + " seconds");
 
         i++;
-        std::cout << "We reached the end of the cycle, new size: " << coarsened_graph.size() << ", condition size: " << coarsest_graph_size << std::endl;
+        DEBUG_STDOUT("We reached the end of the cycle, new size: " + std::to_string(coarsened_graph.size()) + ", condition size: " + std::to_string(coarsest_graph_size));
     }
 
     return coarsened_graph;

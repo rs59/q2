@@ -24,221 +24,6 @@ using namespace std;
 //To be defined in LoadGraphFromMemory
 Graph graph;
 
-std::vector<std::vector<int>> InitialPartitioning(Graph& coarsedGraph, int npartitions, float maxDeviation) {
-    // Calculate the total weight of all vertices in the graph
-    double total_weight = 0;
-    for (const auto& vertexPair : coarsedGraph.getVertices()) {
-        total_weight += vertexPair.second;
-    }
-
-    // Calculate the target weight for each partition
-    double target_weight = total_weight / npartitions;
-    DEBUG_STDOUT("Target weight: "+std::to_string(target_weight));
-
-    // Initialize the partitions and their current weight
-    std::vector<std::vector<int>> partitions(npartitions);
-    std::vector<double> partition_weights(npartitions, 0);
-
-    // Create an index vector to sort vertices based on their weights
-    std::vector<int> sorted_vertices;
-    for (const auto& vertexPair : coarsedGraph.getVertices()) {
-        sorted_vertices.push_back(vertexPair.first);
-    }
-
-    // Sort vertices in descending order of their weights
-    std::sort(sorted_vertices.begin(), sorted_vertices.end(), [&](int a, int b) {
-        return coarsedGraph.getVertexWeight(a) > coarsedGraph.getVertexWeight(b);
-    });
-
-    //this will be used to check that all vertices has been assigned to a partition
-    std::vector<bool> assigned(sorted_vertices.size(), false);
-    bool condition = true;
-    bool madeAssignemt = true;  //check if the previous turn we made an assignment, if not remove a constraint
-
-    int assignedVerticesCtr = 0;
-
-    bool noNodeConnected = false;
-    //Greedy assignment of vertices to partitions
-    while(condition){
-        int k = -1;
-
-        //if no node can be assigned in one complete cycle, remove the constraint that avoid to add nodes to heavy partitions
-        bool useConstraint = madeAssignemt;
-        madeAssignemt = false;
-
-        for(int vertex : sorted_vertices){
-            k++;   //this will be used ony to update assigned vector
-
-            if(assigned[k] == true){
-                //node is already assigned
-                continue;
-            }
-            //we try to find a partition connected to the node
-            bool connected = false;
-            int min_weight_partition = 0;
-
-            std::vector<int> partitionOrder(partition_weights.size());
-
-            // Initialize partitionOrder to contain indices from 0 to n-1
-            for (int i = 0; i < partitionOrder.size(); ++i) {
-                partitionOrder[i] = i;
-            }
-
-            // Sort partitionOrder based on partitionWeights in ascending order
-            std::sort(partitionOrder.begin(), partitionOrder.end(), [&](int a, int b) {
-                return partition_weights[a] < partition_weights[b];
-            });
-
-            //check if node is connected starting checking the partition with lower weight, and proceding in increasing weight order
-            for(int i=0; i < npartitions; i++){
-                if(partition_weights[partitionOrder[i]] > maxDeviation*target_weight && useConstraint){
-                    //doing so we try to take into account max deviation for initial partitioning
-                    continue;
-                }
-
-                //If the partition is empty or if the node is completely disconnected or if none of the remaining nodes are connected to any partition, assign it
-                if(partitions[partitionOrder[i]].empty() || coarsedGraph.getNeighbors(vertex).size() == 0 || noNodeConnected){
-                    connected = true;
-                    min_weight_partition = partitionOrder[i];
-                    noNodeConnected = false;
-                    break;
-                }
-                for (int node : partitions[partitionOrder[i]]) {
-                    if (coarsedGraph.containsEdge(vertex, node)) {
-                        connected = true;
-                        min_weight_partition = partitionOrder[i];
-                        break;
-                    }
-                }
-                if(connected == true){
-                    break;
-                }
-            }
-            if(connected){
-                assigned[k] = true;
-                partitions[min_weight_partition].push_back(vertex);
-                partition_weights[min_weight_partition] += coarsedGraph.getVertexWeight(vertex);
-                madeAssignemt = true;
-                assignedVerticesCtr++;
-            }
-        }
-
-        if(madeAssignemt == false && useConstraint == false){
-            //All nodes in all partitions are disconnected from the remaining nodes
-            noNodeConnected = true;
-        }
-
-        //check if all assigned vector elements are true
-        // Check if all values in the bool vector are true
-        bool allTrue = std::all_of(assigned.begin(), assigned.end(), [](bool val) { return val; });
-
-        if (allTrue) {
-            // If all values are true, set condition to false and exit the loop
-            condition = false;
-        } else {
-            DEBUG_STDOUT("Condition not met");
-            std::cout << "Assigned nodes " << assignedVerticesCtr << " over " << coarsedGraph.getVertices().size() << std::endl;
-        }
-    }
-
-    int iterations = 0;
-    bool constraint = false;
-    int constraintCtr = 0;
-    //Perform movements until is balanced, or until it iterates one time for vertex
-    while(true && iterations < coarsedGraph.getVertices().size()){
-        bool balanced = true;
-        for(double pw : partition_weights){
-            if(pw > maxDeviation*target_weight || pw < (1 - (maxDeviation - 1))*target_weight){
-                balanced = false;
-                break;
-            }
-        }
-        if(balanced){
-            break;
-        }
-
-        bool swapped = false;
-
-        std::vector<int> partitionOrder(partition_weights.size());
-
-        // Initialize partitionOrder to contain indices from 0 to n-1
-        for (int i = 0; i < partitionOrder.size(); ++i) {
-            partitionOrder[i] = i;
-        }
-
-        // Sort partitionOrder based on partitionWeights in descending order
-        std::sort(partitionOrder.begin(), partitionOrder.end(), [&](int a, int b) {
-            return partition_weights[a] < partition_weights[b];
-        });
-
-        //for each vertex in lightest partition
-        for(int i=(partitions.size()-1); i>=(partitions.size()-1); i--){
-            int node;
-            if(partitions[partitionOrder[0]].empty()){
-                if(!partitions[partitionOrder[i]].empty()){
-                    node = *partitions[partitionOrder[i]].begin();
-                }else{
-                    continue;
-                }
-
-                //move neighbor to partition
-                partitions[partitionOrder[i]].erase(std::remove(partitions[partitionOrder[i]].begin(), partitions[partitionOrder[i]].end(), node), partitions[partitionOrder[i]].end());
-                partitions[partitionOrder[0]].push_back(node);
-                partition_weights[partitionOrder[i]] -= coarsedGraph.getVertexWeight(node);
-                partition_weights[partitionOrder[0]] += coarsedGraph.getVertexWeight(node);
-                swapped = true;
-                break;
-            }
-
-            for(int vertex : partitions[partitionOrder[0]]){
-                std::vector<int>& neighbors = coarsedGraph.getNeighbors(vertex);
-
-                for(int node : partitions[partitionOrder[i]]){
-                    //Check all nodes of the heaviest partition not already checked
-                    if(coarsedGraph.getNeighbors(node).size() == 0 || constraint){
-                        //Evaluated node in heaviest partition is disconnected, swap it
-                        partitions[partitionOrder[i]].erase(std::remove(partitions[partitionOrder[i]].begin(), partitions[partitionOrder[i]].end(), node), partitions[partitionOrder[i]].end());
-                        partitions[partitionOrder[0]].push_back(node);
-                        partition_weights[partitionOrder[i]] -= coarsedGraph.getVertexWeight(node);
-                        partition_weights[partitionOrder[0]] += coarsedGraph.getVertexWeight(node);
-                        swapped = true;
-                        constraint = false;
-                        break;
-                    }
-
-                    for(int neighbor : neighbors){
-                        if(neighbor == node){
-                            //move neighbor to partition
-                            partitions[partitionOrder[i]].erase(std::remove(partitions[partitionOrder[i]].begin(), partitions[partitionOrder[i]].end(), neighbor), partitions[partitionOrder[i]].end());
-                            partitions[partitionOrder[0]].push_back(node);
-                            partition_weights[partitionOrder[i]] -= coarsedGraph.getVertexWeight(neighbor);
-                            partition_weights[partitionOrder[0]] += coarsedGraph.getVertexWeight(neighbor);
-                            swapped = true;
-                            break;
-                        }
-                    }
-                    if(swapped){
-                        break;
-                    }
-                }
-                if(swapped){
-                    break;
-                }
-            }
-            if(swapped){
-                break;
-            }
-        }
-        if(!swapped){
-            constraint = true;
-            constraintCtr++;
-        }
-        iterations++;
-    }
-
-    return partitions;
-}
-
 std::vector<int> findBoundaryVertices(Graph& graph, std::vector<std::vector<int>> initial_partitions) {
     std::vector<int> boundaryVertices;
     std::unordered_map<int, double> vertices = graph.getVertices();
@@ -299,15 +84,12 @@ void PrintDetails(const std::vector<std::vector<int>>& partitions, string output
     //TO DO
     int partitionIndex = 0;
     for (const auto& partition : partitions) {
-        std::cout << "Partition " << partitionIndex << ": ";
+        DEBUG_STDOUT("Partition " + std::to_string(partitionIndex) + ": ");
         int sum = 0;
         for (const auto& vertex : partition) {
-            //std::cout << vertex << " ";
             sum += graph.getVertexWeight(vertex);
         }
-        std::cout << std::endl;
-        std::cout << "Total weight: " << sum << std::endl;
-        std::cout << std::endl;
+        DEBUG_STDOUT("Total weight: " + std::to_string(sum) + "\n");
         partitionIndex++;
     }
 }
@@ -325,20 +107,18 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     // Convert the duration to a double value in seconds
     double seconds = duration.count() / 1e6;
     // Print the execution time
-    std::cout << "Reading time: " << seconds << " seconds" << std::endl;
-    //graph.print();
+    DEBUG_STDOUT("Reading time: " + std::to_string(seconds) + " seconds");
+
     start_time = std::chrono::high_resolution_clock::now();
-    std::cout << std::endl << std::endl << "COARSENING" << std::endl;
+    DEBUG_STDOUT("\nCOARSENING");
     Graph coarsedGraph = Coarsening(graph, nthreads, npartitions);        //Coarse the initial graph
     end_time = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     seconds = duration.count() / 1e6;
-    std::cout << "Coarsening time: " << seconds << " seconds" << std::endl;
+    DEBUG_STDOUT("Coarsening time: " + std::to_string(seconds) + " seconds");
     start_time = std::chrono::high_resolution_clock::now();
 
-    std::cout << std::endl << "INITIAL PARTITIONING" << std::endl;
-    // std::vector<std::vector<int>> initial_partitions = InitialPartitioning(coarsedGraph, npartitions, maxdeviation);
-    // coarsedGraph.print();
+    DEBUG_STDOUT("\nINITIAL PARTITIONING");
     coarsedGraph.setOriginalVertices(coarsedGraph.size());
     std::cout << coarsedGraph.getExpandedStart() << std::endl;
     std::vector<std::vector<int>> initial_partitions = multipartitionKL_blob(coarsedGraph, npartitions);
@@ -346,21 +126,21 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
     end_time = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     seconds = duration.count() / 1e6;
-    std::cout << "Initial partitioning time: " << seconds << " seconds" << std::endl;
+    DEBUG_STDOUT("Initial partitioning time: " + std::to_string(seconds) + " seconds");
     start_time = std::chrono::high_resolution_clock::now();
-    std::cout << std::endl << "BOUNDARY VERTICES" << std::endl;
+    DEBUG_STDOUT("\nBOUNDARY VERTICES");
     std::vector<int> boundaryVertices = findBoundaryVertices(coarsedGraph, initial_partitions);
     end_time = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     seconds = duration.count() / 1e6;
-    std::cout << "Boundary vertices time: " << seconds << " seconds" << std::endl;
+    DEBUG_STDOUT("Boundary vertices time: " + std::to_string(seconds) + " seconds");
     start_time = std::chrono::high_resolution_clock::now();
-    std::cout << std::endl << "UNCOARSENING" << std::endl;
+    DEBUG_STDOUT("\nUNCOARSENING");
     std::vector<std::vector<int>> uncoarsened_partitions = Uncoarsening(coarsedGraph, initial_partitions, boundaryVertices, nthreads, maxdeviation);
     end_time = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     seconds = duration.count() / 1e6;
-    std::cout << "Uncoarsening time: " << seconds << " seconds" << std::endl;
+    DEBUG_STDOUT("Uncoarsening time: " + std::to_string(seconds) + " seconds");
     writeToFile(uncoarsened_partitions, outputfile);
     PrintDetails(uncoarsened_partitions, outputfile);
 }
@@ -392,7 +172,7 @@ int main(int argc, char* argv[]) {
     // Convert the duration to a double value in seconds
     double seconds = duration.count() / 1e6;
     // Print the execution time
-    std::cout << "Execution time: " << seconds << " seconds" << std::endl;
+    DEBUG_STDOUT("Execution time: " + std::to_string(seconds) + " seconds");
 
 
     return 0;
