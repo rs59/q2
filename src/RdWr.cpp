@@ -113,7 +113,7 @@ int sectionUpdate(std::mutex& mtx) {
 
 
 // Thread Function to read multiple sequential sections of lines
-void readFromFile(int threadNum, const std::string& filename, Graph& graph, const int& numThreads, const int nodeToRead,  mysync& sincro) {
+void readFromFile(const std::string& filename, Graph& graph, const int& numThreads, const int nodeToRead,  mysync& sincro) {
     // Unlock the mutex to proceed the creation of the next one
     sincro.creationMtx.unlock();
     // Create new reference to file
@@ -127,8 +127,8 @@ void readFromFile(int threadNum, const std::string& filename, Graph& graph, cons
             int thisSection = sectionUpdate(sincro.sectionMtx);
             // Update of the start node id to give
             int startId = thisSection * nodeToRead + 1;
-            DEBUG_STDOUT("Thread #" + std::to_string(threadNum) + " Section:" + std::to_string(thisSection));
-            DEBUG_STDOUT("Thread #" + std::to_string(threadNum) + " Lines: ["+std::to_string(startId) + " - " + std::to_string(startId + nodeToRead) + "]");
+            DEBUG_STDOUT("Thread # Section:" + std::to_string(thisSection));
+            DEBUG_STDOUT("Thread # Lines: ["+std::to_string(startId) + " - " + std::to_string(startId + nodeToRead) + "]");
             // Update File Pointer
             gotoLine(file, startId);
             // Read Data from file and save into @nodes
@@ -141,7 +141,7 @@ void readFromFile(int threadNum, const std::string& filename, Graph& graph, cons
                 DEBUG_STDOUT("Called END FOR ALL");
                 setEOF(sincro.eofMtx, TRUE);
             }
-            DEBUG_STDOUT("Thread #" + std::to_string(threadNum) + " EOF: " +std::to_string(getEOF(sincro.eofMtx)));
+            DEBUG_STDOUT("Thread # EOF: " +std::to_string(getEOF(sincro.eofMtx)));
         }
     } else {
         std::cerr << "Error: Could not open file " << std::endl;
@@ -202,7 +202,7 @@ Graph metisRead(const std::string& filename, const int& numThreads){
         DEBUG_STDOUT("Thread #"+std::to_string(i)+" created");
 
         threadPool.emplace_back([&] {                                  // all remaining lines
-                readFromFile(i, filename, graph, numThreads, linesPerSection, std::ref(sincro));
+                readFromFile(filename, graph, numThreads, linesPerSection, std::ref(sincro));
             });
     }
     // Waiting for all threads to terminate
