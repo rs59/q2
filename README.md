@@ -1,37 +1,55 @@
-# Project "q2"
+------------------------------------------------------------
+                     Q2 project README
+------------------------------------------------------------
 
-## Algorithm summary
+Compatibility:
+The program can be compiled on Ubuntu 22.04.3 LTS with g++ 11.4.0. Alternatively, it can be compiled on Windows 10 with g++ 13.2.0 (MSYS2 project). The implementation relies solely on standard libraries, without using Boost.
 
-A p-way partitioning of graph G is a division of G into p sub-graphs in which the vertices in each subset do not overlap and satisfy specific properties:
-- The sum of the weights of the nodes in each subgraph is balanced.
-- The sum of the weights of the edges crossing between subsets is minimized.
+Compile METIS Implementation:
+Compile:
+    g++ -Wall -o ./bin/mtmetis.exe ./src/mtmetis.cpp
+Run:
+    ./bin/mtmetis.exe nThreads nPartitions maxDeviation inputFile outputFile cutoffSize partitioningAlg
+    - nThreads: number of threads for partitioning
+    - nPartitions: the final number of partitions desired
+    - maxDeviation: tolerance for partition weights
+    - inputFile: address of the input file
+    - outputFile: address to save the result
+    - cutoffSize: size below which partitioning can occur
+    - partitioningAlg: -g for greedy or -kl for KL
 
-## Project outputs
+Compile and Run KL Implementation:
+Compile:
+    g++ -Wall -o ./bin/KL.exe ./src/KL.cpp
+Run:
+    ./bin/KL.exe nThreads nPartitions input_filename output_filename mode
+    - nThreads: number of threads (affecting only reading in KL sequential mode)
+    - nPartitions: the final number of partitions desired
+    - input_filename: address of the input file
+    - output_filename: address to save the result
+    - mode: -rr for round robin or -b for blob
 
-1. The [source C++ files](https://github.com/rs59/q2/blob/main/src/2023partition.cpp), including: 
-     - the sequential version of the algorithm
-     - the parallel version of the algorithm
-2. A readme [USER MANUAL](https://github.com/rs59/q2/blob/main/output/USER_MANUAL.md) text file (written in plain ASCII) describing how to:
-    - compile and run the program, under which system, and which API.
-3. A DOCUMENTATION text file (written in Word/Markdown/LaTeX/etc) including:
-  
-[Part 1](https://github.com/rs59/q2/blob/main/output/DOCUMENTATION_1.md):
- - How the reading part has been performed
- - How the data structure has been organized
- - How the parallelism has been designed
- - Selection of algorithm: determine what heuristics make sense (i.e. level of imbalance between the partitions and level of failure of edges)
-  
-[Part 2](https://github.com/rs59/q2/blob/main/output/DOCUMENTATION_2.ipynb):
- - Experimental evaluation: comparison (in terms of [memory and of elapsed time](https://unix.stackexchange.com/questions/207209/how-to-calculate-the-memory-consumed-by-a-c-program-in-linux)) between the original sequential version of the tool and the parallel version with different parallelization levels (1, 2, 4, 8, threads) (Y axis) and increasing complexity of the input graph (up to millions of nodes) (X axis).
- - Tables or graphics reporting a reasonable set of experimental results.
-  
-[Part 3](https://github.com/rs59/q2/blob/main/output/DOCUMENTATION_3.ipynb): 
- - Evaluate a standard graph sample dataset that can be used with the tool (real-world dataset)
-  
-[Part 4](https://github.com/rs59/q2/blob/main/output/DOCUMENTATION_4.ipynb):
- - Optional: Compare the result of the written tool with publicly available applications such as hMetis, or the one available in Python in scikit-learn.
+METIS Models and Testing:
+./resources/metismodels contains various Metis-type model files, generated using genmetis.py (provided in ./resources). Each file structure is xaaaaybbbbmccqdd.metis:
+- xaaaaybbbb: number of nodes and edges
+- mcc: maximum value of node weights
+- qdd: maximum value of edge weights
 
-4. An OVERHEAD set (organized in PowerPoint or similar) to be used during the project discussion in the project evaluation phase.
+CutSize and Cut Quality Calculation:
+Use CutSizeCalc.cpp to calculate cutsize and cut quality.
+Compile:
+    g++ -Wall -o ./bin/CutSizeCalc.exe ./src/CutSizeCalc.cpp
+Run:
+    ./bin/CutSizeCalc.exe input_filename output_filename nThreads
+    - input_filename: address of the input file
+    - output_filename: address to save the result
+    - nThreads: number of threads for the file reader
 
-
-To read the full project details, view the [instructions](https://github.com/rs59/q2/blob/main/instructions.pdf) PDF. Additional relevant research can be found in the [resources](https://github.com/rs59/q2/tree/main/resources) folder.
+Installing and Running MT-METIS:
+Run the following commands in bash:
+curl https://dlasalle.github.io/mt-metis/releases/mt-metis-0.7.2.tar.gz | tar -xz
+cd mt-metis-0.7.2; ./configure; make; make install
+apt-get install sysstat
+sudo apt install zsh -y
+g++ ./q2/src/mtmetis.cpp -o ./q2/bin/mtmetis.exe; chmod +x ./q2/bin/mtmetis.exe
+./mt-metis-0.7.2/build/Linux-x86_64/bin/mtmetis -T 4 ./q2/resources/metismodels/x10000y20000m20q20.metis 10 test.part

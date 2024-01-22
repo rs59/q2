@@ -373,7 +373,7 @@ void MultithreadedMETIS(int nthreads, int npartitions, float maxdeviation, strin
 
 int main(int argc, char* argv[]) {
     if (argc < 8) {
-        std::cerr << "Usage: " << argv[0] << " nthreads npartitions maxdeviation inputfile outputfile coarsestGraphSize partitioningAlg: -g for greedy or -kl for KL" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " nthreads npartitions maxdeviation inputfile outputfile cutoffSize partitioningAlg: -g for greedy or -kl for KL" << std::endl;
         return 1;
     }
 
