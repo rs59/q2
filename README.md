@@ -2,10 +2,10 @@
                      Q2 project README
 ------------------------------------------------------------
 
-Compatibility:
+**Compatibility:**
 The program can be compiled on Ubuntu 22.04.3 LTS with g++ 11.4.0. Alternatively, it can be compiled on Windows 10 with g++ 13.2.0 (MSYS2 project). The implementation relies solely on standard libraries, without using Boost.
 
-Compile METIS Implementation:
+**Compile METIS Implementation:**
 Compile:
     g++ -Wall -o ./bin/mtmetis.exe ./src/mtmetis.cpp
 Run:
@@ -18,7 +18,7 @@ Run:
     - cutoffSize: size below which partitioning can occur
     - partitioningAlg: -g for greedy or -kl for KL
 
-Compile and Run KL Implementation:
+**Compile and Run KL Implementation:**
 Compile:
     g++ -Wall -o ./bin/KL.exe ./src/KL.cpp
 Run:
@@ -29,13 +29,13 @@ Run:
     - output_filename: address to save the result
     - mode: -rr for round robin or -b for blob
 
-METIS Models and Testing:
+**METIS Models and Testing:**
 ./resources/metismodels contains various Metis-type model files, generated using genmetis.py (provided in ./resources). Each file structure is xaaaaybbbbmccqdd.metis:
 - xaaaaybbbb: number of nodes and edges
 - mcc: maximum value of node weights
 - qdd: maximum value of edge weights
 
-CutSize and Cut Quality Calculation:
+**CutSize and Cut Quality Calculation:**
 Use CutSizeCalc.cpp to calculate cutsize and cut quality.
 Compile:
     g++ -Wall -o ./bin/CutSizeCalc.exe ./src/CutSizeCalc.cpp
@@ -45,7 +45,7 @@ Run:
     - output_filename: address to save the result
     - nThreads: number of threads for the file reader
 
-Installing and Running MT-METIS:
+**Installing and Running MT-METIS:**
 Run the following commands in bash:
 curl https://dlasalle.github.io/mt-metis/releases/mt-metis-0.7.2.tar.gz | tar -xz
 cd mt-metis-0.7.2; ./configure; make; make install
