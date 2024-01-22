@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <map>
 
-#define N 3
 
 // Structure to represent a pair of nodes and the weight of the edge between them
 struct SwapNodes {

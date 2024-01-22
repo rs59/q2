@@ -1,4 +1,4 @@
-#define DEBUG 1
+// #define DEBUG 1
 
 #ifdef DEBUG 
 #define DEBUG_STDERR(x) (std::cerr << (x) << std::endl)

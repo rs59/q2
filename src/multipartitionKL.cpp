@@ -109,7 +109,7 @@ std::vector<std::vector<int>> makeNodePartition(Graph &G, bool expand)
     {
         int vertexID = entry.first;
         double weight = entry.second;
-        DEBUG_STDOUT("id: " + std::to_string(vertexID) + " weight: " + std::to_string(weight) + " exStartIndex: ");
+        // DEBUG_STDOUT("id: " + std::to_string(vertexID) + " weight: " + std::to_string(weight) + " exStartIndex: ");
 
         int val = rand() % 2 == 0;
         if (vertexID < expandedStart + 1)
@@ -267,9 +267,9 @@ std::vector<std::vector<int>> multipartitionKL_blob(Graph &G, int numPartitions)
         {
             DEBUG_STDOUT("number of graphs: " + std::to_string(graphs.size()));
             std::cout << "number of graphs: " << graphs.size() << std::endl;
-            tempG.print();
+            // tempG.print();
             // splitGraph for each partition
-            std::cout << "tempG size " << tempG.size() << std::endl;
+            // std::cout << "tempG size " << tempG.size() << std::endl;
 
             tempG.setOriginalVertices(gOriginalSize);
             auto tempPartitions = makeNodePartition(tempG, false);
