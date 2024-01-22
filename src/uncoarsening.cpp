@@ -539,6 +539,15 @@ std::vector<std::vector<int>> Uncoarsening(Graph& graph, std::vector<std::vector
         start_time = std::chrono::high_resolution_clock::now();
         balancePartitions(graph, partitions, partition_weights, boundaryVertices, partitions, maxDeviation, target_weight);
 
+        #ifdef DEBUG
+            int accumulator = 0;
+            for (auto thisPart : partitions)
+            {
+                accumulator += thisPart.size();
+            }
+            std::cout << "Graph size " << accumulator << std::endl;
+        #endif
+
         DEBUG_STDOUT("Balance partitions ended");
         end_time = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);

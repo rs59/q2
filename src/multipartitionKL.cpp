@@ -11,33 +11,39 @@
 #include "KLCore.cpp"
 
 // Structure to represent a partition
-struct Partition {
+struct Partition
+{
     std::vector<int> part;
     double weight;
 };
 
 #ifdef DEBUG
 // Function to calculate the cut size of partitions
-double calculateCutSize(const Graph& G, const std::vector<std::vector<int>>& partitions){
+double calculateCutSize(const Graph &G, const std::vector<std::vector<int>> &partitions)
+{
     double cutSize = 0;
-    for(const auto& partition : partitions)
-        for(const auto& node : partition){
+    for (const auto &partition : partitions)
+        for (const auto &node : partition)
+        {
             auto nNodes = G.getNeighborsKL(node);
-            for(const auto& nNode : nNodes)
-                if(std::find(partition.begin(), partition.end(), nNode) == partition.end())
+            for (const auto &nNode : nNodes)
+                if (std::find(partition.begin(), partition.end(), nNode) == partition.end())
                     cutSize += G.getEdgeWeightKL(node, nNode);
         }
-    return cutSize / 2;  // Dividing by 2 as each edge is counted twice
+    return cutSize / 2; // Dividing by 2 as each edge is counted twice
 }
 
 // Function to print partitions
-void printPartitions(const std::vector<std::vector<int>>& partitions, std::unordered_map<int, double> vertices){
+void printPartitions(const std::vector<std::vector<int>> &partitions, std::unordered_map<int, double> vertices)
+{
     int weight;
     std::cout << "Printing Partitions: " << std::endl;
-    for(int i = 0; i < partitions.size(); i++){
+    for (int i = 0; i < partitions.size(); i++)
+    {
         weight = 0;
         std::cout << "Partition " << i + 1 << ": " << partitions[i].size() << std::endl;
-        for(const auto& node: partitions[i]){
+        for (const auto &node : partitions[i])
+        {
             std::cout << node << " ";
             weight += vertices[node];
         }
@@ -48,28 +54,33 @@ void printPartitions(const std::vector<std::vector<int>>& partitions, std::unord
 #endif
 
 // Function to fill a partition with dummy nodes to match the maximum weight
-void fillPartition(Partition& partition, int& alreadyIns, const double& max_weight){
+void fillPartition(Partition &partition, int &alreadyIns, const double &max_weight)
+{
     DEBUG_STDOUT("filling partition");
-    for(int i = 0; i < static_cast<int>(max_weight - partition.weight); i++){
+    for (int i = 0; i < static_cast<int>(max_weight - partition.weight); i++)
+    {
         alreadyIns++;
         partition.part.push_back(-alreadyIns);
     }
 }
 
 // Function to clean partitions by removing dummy nodes
-std::vector<std::vector<int>> cleanPartition(const std::vector<Partition>& partitions){
+std::vector<std::vector<int>> cleanPartition(const std::vector<Partition> &partitions)
+{
     std::vector<std::vector<int>> cleanPartitions;
-    for(const auto& partition : partitions)
+    for (const auto &partition : partitions)
         cleanPartitions.push_back(partition.part);
     return cleanPartitions;
 }
 
 // Function to create initial node partitions
-std::vector<std::vector<int>> makeNodePartition_multiple_round_robin(const Graph& G, const int& numPartitions){
+std::vector<std::vector<int>> makeNodePartition_multiple_round_robin(const Graph &G, const int &numPartitions)
+{
     auto nodes = G.getVertices();
     std::vector<std::vector<int>> partitions(numPartitions);
     int i = 0;
-    for(const auto& node : nodes){
+    for (const auto &node : nodes)
+    {
         partitions[i].push_back(node.first);
         i = (i + 1) % numPartitions;
     }
@@ -79,9 +90,9 @@ std::vector<std::vector<int>> makeNodePartition_multiple_round_robin(const Graph
     return partitions;
 }
 
-
 // Function to create initial node partitions
-std::vector<std::vector<int>> makeNodePartition(Graph& G, bool expand){
+std::vector<std::vector<int>> makeNodePartition(Graph &G, bool expand)
+{
     int numPartitions = 2;
     srand(time(NULL));
     auto nodes = G.getVertices();
@@ -89,12 +100,13 @@ std::vector<std::vector<int>> makeNodePartition(Graph& G, bool expand){
     int expandedStart = G.getExpandedStart();
 
     // G.print();
-    
+
     std::unordered_map<int, int> partition_assignments;
     std::unordered_map<int, int> partition_totalweights;
 
     // Step 1: Randomly assign each original vertex to partition A or B
-    for(const auto& entry : nodes){
+    for (const auto &entry : nodes)
+    {
         int vertexID = entry.first;
         double weight = entry.second;
         DEBUG_STDOUT("id: " + std::to_string(vertexID) + " weight: " + std::to_string(weight) + " exStartIndex: ");
@@ -108,19 +120,21 @@ std::vector<std::vector<int>> makeNodePartition(Graph& G, bool expand){
         }
     }
 
-
     // Step 2: Rebalance partitions in terms of weight: move over 1/2 of nodes from lighter partition
     int lighter_partition;
     int heavier_partition;
     DEBUG_STDOUT("p1 total weights " + std::to_string(partition_totalweights[0]) + "p2 total weights " + std::to_string(partition_totalweights[1]));
-    if(partition_totalweights[0] < partition_totalweights[1]) {
+    if (partition_totalweights[0] < partition_totalweights[1])
+    {
         lighter_partition = 0;
-    } else {
+    }
+    else
+    {
         lighter_partition = 1;
     }
-    heavier_partition = 1-lighter_partition;
+    heavier_partition = 1 - lighter_partition;
 
-    int to_move_minimum = (partition_totalweights[heavier_partition] - partition_totalweights[lighter_partition])/2;
+    int to_move_minimum = (partition_totalweights[heavier_partition] - partition_totalweights[lighter_partition]) / 2;
     DEBUG_STDOUT("tmm " + std::to_string(to_move_minimum));
     // Remove nodes from the heavier partition until it is balanced
     int orig_size = partitions[heavier_partition].size();
@@ -137,8 +151,8 @@ std::vector<std::vector<int>> makeNodePartition(Graph& G, bool expand){
 
         partitions[heavier_partition].pop_back();
         partitions[lighter_partition].push_back(vertexID);
-        
-        DEBUG_STDOUT("moving " + std::to_string(vertexID) + " from " + std::to_string(heavier_partition) + " to " + std::to_string(lighter_partition) + " with weight " + std::to_string(thisWeight) );
+
+        DEBUG_STDOUT("moving " + std::to_string(vertexID) + " from " + std::to_string(heavier_partition) + " to " + std::to_string(lighter_partition) + " with weight " + std::to_string(thisWeight));
         DEBUG_STDOUT("heavier partition " + std::to_string(partitions[heavier_partition].size()) + " " + std::to_string(heavier_partition) + " and " + std::to_string(partitions[lighter_partition].size()) + " lighter partition " + std::to_string(lighter_partition));
         // std::cout << "moving " << vertexID << " from " << heavier_partition << " to " << lighter_partition << " with weight " << thisWeight << std::endl;
         // std::cout << "heavier partition " << partitions[heavier_partition].size() << " " << heavier_partition << " and " << partitions[lighter_partition].size() << " lighter partition " << lighter_partition << std::endl;
@@ -149,47 +163,47 @@ std::vector<std::vector<int>> makeNodePartition(Graph& G, bool expand){
         // std::cout << "lighter p: " << partition_totalweights[lighter_partition] << "heavier p: " << partition_totalweights[heavier_partition] << std::endl;
         partition_assignments[vertexID] = lighter_partition;
 #ifdef DEBUG
-        std::for_each(partitions[heavier_partition].begin(), partitions[heavier_partition].end(), [](int value)
-                    { std::cout << value << " "; });
-        std::cout << std::endl;
-        std::for_each(partitions[lighter_partition].begin(), partitions[lighter_partition].end(), [](int value)
-                    { std::cout << value << " "; });
-        std::cout << std::endl;
+        // std::for_each(partitions[heavier_partition].begin(), partitions[heavier_partition].end(), [](int value)
+        //             { std::cout << value << " "; });
+        // std::cout << std::endl;
+        // std::for_each(partitions[lighter_partition].begin(), partitions[lighter_partition].end(), [](int value)
+        //             { std::cout << value << " "; });
+        // std::cout << std::endl;
 #endif
     }
 
     // We can try to expand the nodes but it seems to be very slow and not worth it
-    if(expand) {
+    if (expand)
+    {
         G.setOriginalVertices(G.size());
         DEBUG_STDOUT(std::to_string(G.size()) + " VERTICES IN GRAPH");
         // std::cout << G.size() << " VERTICES IN GRAPH" << std::endl;
 
         G.expandNodes();
         auto expandedRange = G.getExpandedRange();
-        
 
         // Assign expanded nodes t
-        for(const auto& entry : nodes){
+        for (const auto &entry : nodes)
+        {
             int vertexID = entry.first;
             double weight = entry.second;
             int exStartIndex = expandedRange[vertexID];
-            
-            if (vertexID < expandedStart+1) { // if it is not an expanded node
+
+            if (vertexID < expandedStart + 1)
+            { // if it is not an expanded node
                 int val = partition_assignments[vertexID];
-                
-                for(int i=0; i < weight; i++) {  // if it is an expanded node
+
+                for (int i = 0; i < weight; i++)
+                { // if it is an expanded node
                     // cout << "val : " << val << "currInd : " << exStartIndex+i << " expandedRange : " << expandedRange[exStartIndex+i] << std::endl;
-                    partitions[val].push_back(exStartIndex+i); // Step 2: Assign all extra generated vertices to the same partition as their original vertex
+                    partitions[val].push_back(exStartIndex + i); // Step 2: Assign all extra generated vertices to the same partition as their original vertex
                 }
-            
             }
         }
-        
-        
+
         // De-expand nodes
 
         G.collapseNodes();
-
     }
 
     // std::cout << "Partition A balanced weight: " << count_partition_a << std::endl;
@@ -199,7 +213,6 @@ std::vector<std::vector<int>> makeNodePartition(Graph& G, bool expand){
 #endif
     return partitions;
 }
-
 
 std::pair<int, int> dividePartitionCount(const int &n)
 {
@@ -239,7 +252,7 @@ std::vector<std::vector<int>> multipartitionKL_blob(Graph &G, int numPartitions)
 #ifdef DEBUG
     printPartitions(partitions, G.getVertices());
 #endif
-    int originalPartitionCount = numPartitions+1;
+    int originalPartitionCount = numPartitions + 1;
     while (true) // Divide all of the partitions in the last round (2,4,8,16,etc.)
     {
 
@@ -256,35 +269,34 @@ std::vector<std::vector<int>> multipartitionKL_blob(Graph &G, int numPartitions)
             tempG.setOriginalVertices(gOriginalSize);
             auto tempPartitions = makeNodePartition(tempG, false);
 
-
-                        int minPartitionSize = std::pow(2, static_cast<int>(std::floor(std::log2(originalPartitionCount - 1))) - static_cast<int>(std::floor(std::log2(originalPartitionCount - numPartitions + 1)))); // number of nodes required to do x more divisions
-            do {
+            int minPartitionSize = std::pow(2, static_cast<int>(std::floor(std::log2(originalPartitionCount - 1))) - static_cast<int>(std::floor(std::log2(originalPartitionCount - numPartitions + 1)))); // number of nodes required to do x more divisions
+            do
+            {
                 KL_Partitioning(tempG, tempPartitions[0], tempPartitions[1]);
-                std::cout << "    originalPartitionCount: " << originalPartitionCount << std::endl;
-                std::cout << "    numPartitions: " << numPartitions << std::endl;
-                std::cout << "    minPartitionSize: " << minPartitionSize << std::endl;
-                std::for_each(tempPartitions[0].begin(), tempPartitions[0].end(), [](int value)
-                              { std::cout << value << " "; });
-                std::cout << std::endl;
-                std::for_each(tempPartitions[1].begin(), tempPartitions[1].end(), [](int value)
-                              { std::cout << value << " "; });
-                std::cout << std::endl;
-                if (tempPartitions[0].size() < minPartitionSize && tempPartitions[1].size() < minPartitionSize) // then the partition is big enough
-                {
-                    auto tempPartitions = makeNodePartition(tempG, false); // reallocate
-                    std::this_thread::sleep_for(std::chrono::milliseconds(8000));
-                }
-            } while (tempPartitions[0].size() < minPartitionSize && tempPartitions[1].size() < minPartitionSize);
-
+                // std::cout << "    originalPartitionCount: " << originalPartitionCount << std::endl;
+                // std::cout << "    numPartitions: " << numPartitions << std::endl;
+                // std::cout << "    minPartitionSize: " << minPartitionSize << std::endl;
                 // std::for_each(tempPartitions[0].begin(), tempPartitions[0].end(), [](int value)
                 //               { std::cout << value << " "; });
                 // std::cout << std::endl;
                 // std::for_each(tempPartitions[1].begin(), tempPartitions[1].end(), [](int value)
                 //               { std::cout << value << " "; });
                 // std::cout << std::endl;
+                if (tempPartitions[0].size() < minPartitionSize && tempPartitions[1].size() < minPartitionSize) // then the partition is big enough
+                {
+                    auto tempPartitions = makeNodePartition(tempG, false); // reallocate
+                }
+            } while (tempPartitions[0].size() < minPartitionSize && tempPartitions[1].size() < minPartitionSize);
 
-                std::pair<Graph, Graph>
-                    tempGraphs = tempG.splitGraph(tempPartitions[0], tempPartitions[1]);
+            // std::for_each(tempPartitions[0].begin(), tempPartitions[0].end(), [](int value)
+            //               { std::cout << value << " "; });
+            // std::cout << std::endl;
+            // std::for_each(tempPartitions[1].begin(), tempPartitions[1].end(), [](int value)
+            //               { std::cout << value << " "; });
+            // std::cout << std::endl;
+
+            std::pair<Graph, Graph>
+                tempGraphs = tempG.splitGraph(tempPartitions[0], tempPartitions[1]);
             // printPartitions(tempPartitions, tempGraphs.first.getVertices());
 
             partitions.erase(partitions.begin());
@@ -303,51 +315,60 @@ std::vector<std::vector<int>> multipartitionKL_blob(Graph &G, int numPartitions)
                 break;
             }
         }
-        if (numPartitions == 1) {
+        if (numPartitions == 1)
+        {
             break;
         }
-        
     }
     return partitions;
 }
 
 // Function for Kernighan-Lin Multi-level Partitioning
-std::vector<std::vector<int>> multipartitionKL_round_robin(Graph& G, const int& numPartitions) {
+std::vector<std::vector<int>> multipartitionKL_round_robin(Graph &G, const int &numPartitions)
+{
     auto partitions = makeNodePartition_multiple_round_robin(G, numPartitions);
     char optimized = 1;
     int rounds = 0;
-    do {
+    do
+    {
         rounds++;
         std::cout << "New round" << std::endl;
         optimized = 1;
-        for(int i = 0; i < numPartitions; i++){
-            for(int j = i + 1; j < numPartitions; j++){
+        for (int i = 0; i < numPartitions; i++)
+        {
+            for (int j = i + 1; j < numPartitions; j++)
+            {
                 std::cout << "New partitioning " << i << ":" << j << std::endl;
-#ifdef DEBUG                
+#ifdef DEBUG
                 printPartitions(partitions, G.getVertices());
 #endif
                 char inequal_size = 0;
                 // Fill with weight 0 nodes to equalize partitions size
-                if(partitions[i].size() < partitions[j].size()){
+                if (partitions[i].size() < partitions[j].size())
+                {
                     partitions[i].push_back(-1);
                     inequal_size = 1;
-                } else if (partitions[i].size() > partitions[j].size()){
+                }
+                else if (partitions[i].size() > partitions[j].size())
+                {
                     partitions[j].push_back(-1);
                     inequal_size = 1;
                 }
                 int iterations = KL_Partitioning(G, partitions[i], partitions[j]);
                 DEBUG_STDOUT("Iterations " + std::to_string(iterations));
                 // std::cout << "Iterations " << iterations << std::endl;
-                //Delete weight 0 nodes
-                if(inequal_size){
+                // Delete weight 0 nodes
+                if (inequal_size)
+                {
                     partitions[i].erase(std::remove(partitions[i].begin(), partitions[i].end(), -1), partitions[i].end());
                     partitions[j].erase(std::remove(partitions[j].begin(), partitions[j].end(), -1), partitions[j].end());
                 }
-                if(iterations > 1 && optimized) optimized = 0;
+                if (iterations > 1 && optimized)
+                    optimized = 0;
             }
         }
     } while (!optimized);
-    DEBUG_STDOUT("Number of Rounds: " +  std::to_string(rounds));
+    DEBUG_STDOUT("Number of Rounds: " + std::to_string(rounds));
 #ifdef DEBUG
     printPartitions(partitions, G.getVertices());
 #endif
