@@ -12,7 +12,7 @@ All programs can be compiled on Ubuntu 22.04.3 LTS with g++ 11.4.0. Alternativel
 
 Compile:
 
-    g++ -Wall -o ./bin/mtmetis.exe ./src/mtmetis.cpp
+    g++ -o ./bin/mtmetis.exe ./src/mtmetis.cpp
     
 Run:
 
@@ -36,7 +36,7 @@ Examples:
 
 Compile:
 
-    g++ -Wall -o ./bin/KL.exe ./src/KL.cpp
+    g++ -o ./bin/KL.exe ./src/KL.cpp
     
 Run:
 
@@ -68,7 +68,7 @@ Use CutSizeCalc.cpp to calculate cutsize and cut quality (deviation from ideal c
 
 Compile:
 
-    g++ -Wall -o ./bin/CutSizeCalc.exe ./src/CutSizeCalc.cpp
+    g++ -o ./bin/CutSizeCalc.exe ./src/CutSizeCalc.cpp
     
 Run:
 
