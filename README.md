@@ -6,7 +6,7 @@ s307995 Robert Schwartz, s308685 Giovanni Gaddi, s317998 Alessandro Bianco
 
 
 ## Compatibility:
-All programs can be compiled on Ubuntu 22.04.3 LTS with g++ 11.4.0. Alternatively, all programs with the exception of the [external METIS comparison implementation](https://github.com/KarypisLab/METIS) can be compiled on Windows 10 with g++ 13.2.0 (MSYS2 project). The implementation relies solely on standard libraries, without using Boost. For faster execution output can always be piped to /dev/null.
+All programs can be compiled on Ubuntu 22.04.3 LTS with g++ 11.4.0. Alternatively, all programs with the exception of the [external METIS comparison implementation](https://github.com/KarypisLab/METIS) can be compiled on Windows 10 with g++ 13.2.0 (MSYS2 project). The implementation relies solely on standard libraries, without using Boost. For faster execution output can always be piped to /dev/null. Note that the ./bin directory may have to be created.
 
 ## Compile and Run our METIS Implementation:
 
