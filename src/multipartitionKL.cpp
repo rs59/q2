@@ -90,7 +90,7 @@ std::vector<std::vector<int>> makeNodePartition_multiple_round_robin(const Graph
     return partitions;
 }
 
-// Function to create initial node partitions
+// Function to create initial node partitions: used for blob method
 std::vector<std::vector<int>> makeNodePartition(Graph &G, bool expand)
 {
     int numPartitions = 2;
@@ -144,6 +144,8 @@ std::vector<std::vector<int>> makeNodePartition(Graph &G, bool expand)
 
         int thisWeight = nodes[vertexID];
         to_move_minimum -= thisWeight;
+
+        // Do not allow a final partition to be empty
         if (to_move_minimum <= 0 && partitions[heavier_partition].size() != 0 && partitions[lighter_partition].size() != 0)
         {
             break;
@@ -172,7 +174,7 @@ std::vector<std::vector<int>> makeNodePartition(Graph &G, bool expand)
 #endif
     }
 
-    // We can try to expand the nodes but it seems to be very slow and not worth it
+    // We can try to expand the nodes but it seems to be very slow and not worth it: not used in final evaluation
     if (expand)
     {
         G.setOriginalVertices(G.size());
@@ -230,10 +232,11 @@ std::pair<int, int> dividePartitionCount(const int &n)
     return std::make_pair(part1, part2);
 }
 
-// Function for Kernighan-Lin Multi-level Partitioning
+// Function for Kernighan-Lin Multi-level Partitioning: Blob method
 std::vector<std::vector<int>> multipartitionKL_blob(Graph &G, int numPartitions)
 {
 
+    // Store original size
     int gOriginalSize = G.size();
     G.setOriginalVertices(G.size());
     // std::pair<int, int> partitionsToMake = dividePartitionCount(numPartitions);
@@ -252,6 +255,8 @@ std::vector<std::vector<int>> multipartitionKL_blob(Graph &G, int numPartitions)
 #ifdef DEBUG
     printPartitions(partitions, G.getVertices());
 #endif
+
+    // Divide n-1 times
     int originalPartitionCount = numPartitions + 1;
     while (true) // Divide all of the partitions in the last round (2,4,8,16,etc.)
     {
@@ -269,6 +274,7 @@ std::vector<std::vector<int>> multipartitionKL_blob(Graph &G, int numPartitions)
             tempG.setOriginalVertices(gOriginalSize);
             auto tempPartitions = makeNodePartition(tempG, false);
 
+            // Limit size of partitions to be above the minimum required for all future divisions
             int minPartitionSize = std::pow(2, static_cast<int>(std::floor(std::log2(originalPartitionCount - 1))) - static_cast<int>(std::floor(std::log2(originalPartitionCount - numPartitions + 1)))); // number of nodes required to do x more divisions
             do
             {
